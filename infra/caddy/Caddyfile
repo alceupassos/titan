@@ -1,0 +1,15 @@
+# Reverse proxy local para F0 — TLS local/self-signed, sem domínio real ainda
+# (docs/decisoes-de-negocio.md não tem DOMINIO preenchido). Em produção: Cloudflare na frente +
+# ACME real, ver ADR-0002/ADR-0015.
+
+localhost:8443 {
+	tls internal
+
+	handle /console* {
+		reverse_proxy console:3000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

@@ -1,0 +1,29 @@
+name: titan-stay-deploy-swap
+
+# Overlay usado só pelo scripts/deploy-swap.sh — dois containers da MESMA imagem de
+# apps/console, nomes/portas diferentes, para provar cutover sem downtime localmente
+# (substituto da VPS real — ver docs/fase-atual.md, gap conhecido).
+services:
+  console-blue:
+    build:
+      context: ..
+      dockerfile: apps/console/Dockerfile
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  console-green:
+    build:
+      context: ..
+      dockerfile: apps/console/Dockerfile
+    ports:
+      - "127.0.0.1:3002:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
+      interval: 2s
+      timeout: 2s
+      retries: 15

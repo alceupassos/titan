@@ -1,0 +1,6 @@
+{
+  "name": "@titan/field",
+  "version": "0.0.0",
+  "private": true,
+  "description": "App nativo da equipe própria (Expo, offline-first, tier T3/nível A3 de evidência). Escopo: Fase 9 (docs/roadmap.md). Stub de package.json apenas nesta rodada — scaffold Expo real entra na Fase 9."
+}

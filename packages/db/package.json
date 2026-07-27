@@ -1,0 +1,28 @@
+{
+  "name": "@titan/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "description": "Drizzle schema, migrations SQL, políticas RLS. ÚNICO pacote autorizado a escrever aqui é o subagente migration-writer — fila de um, nunca duas instâncias em paralelo.",
+  "scripts": {
+    "test": "vitest run --passWithNoTests --exclude '**/*.pgbouncer.test.ts'",
+    "test:pooling": "vitest run test/tenant-isolation.pgbouncer.test.ts",
+    "typecheck": "tsc --noEmit",
+    "migrate": "drizzle-kit migrate",
+    "generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.10",
+    "@testcontainers/postgresql": "^10.16.0",
+    "testcontainers": "^10.16.0",
+    "@types/pg": "^8.11.10",
+    "vitest": "^2.1.8",
+    "typescript": "^5.7.0"
+  }
+}

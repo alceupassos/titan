@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.next/
+dist/
+build/
+.turbo/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# Storybook
+storybook-static/
+
+# Claude Code local overrides
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Infra local state
+infra/**/*.local.*
+docker-compose.override.yml

@@ -1,0 +1,7 @@
+@import "@titan/ui/src/styles/theme.css";
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+}

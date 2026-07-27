@@ -1,0 +1,38 @@
+/* Tokens do cockpit Titan Stay — fonte de verdade: /DESIGN.md (frontmatter + ADR-0016). */
+@import "tailwindcss";
+
+@theme {
+  /* ── Cockpit (escuro, tema padrão) ── */
+  --color-bg: oklch(0.16 0.012 250);
+  --color-surface: oklch(0.21 0.014 250);
+  --color-surface-2: oklch(0.26 0.016 250);
+  --color-border: oklch(1 0 0 / 8%);
+  --color-fg: oklch(0.97 0.005 250);
+  --color-fg-muted: oklch(0.72 0.01 250);
+  --color-accent: oklch(0.78 0.17 155);
+  --color-accent-fg: oklch(0.18 0.03 155);
+  --color-positive: oklch(0.78 0.17 155);
+  --color-negative: oklch(0.65 0.2 25);
+  --color-warning: oklch(0.8 0.15 85);
+  --color-info: oklch(0.7 0.14 250);
+
+  --radius-card: 1.25rem;
+  --radius-control: 0.75rem;
+  --radius-pill: 9999px;
+
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", monospace;
+
+  --row-compact: 40px;
+  --row-comfortable: 56px;
+
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-standard: 200ms;
+}
+
+/* The Tabular-Nums Rule (DESIGN.md §3): todo número financeiro/de tabela é mono + tabular. */
+.tabular-figures {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

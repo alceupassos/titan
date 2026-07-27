@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Serviço de banco/pool não sobem aqui — testes que exigem Postgres/PgBouncer reais
+  # (test:pooling) rodam num job à parte (ver ci-pooling abaixo), não no lint/test padrão.
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  lint-typecheck-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache do Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - name: Lint
+        run: pnpm turbo run lint
+
+      - name: Typecheck
+        run: pnpm turbo run typecheck
+
+      - name: Testes (excluindo os que exigem Docker/Postgres reais)
+        run: pnpm turbo run test
+
+      - name: Build
+        run: pnpm turbo run build
+
+      - name: Auditoria de dependências
+        run: pnpm audit --prod
+        continue-on-error: true # não bloqueia PR ainda na Fase 0; revisar severidade manualmente
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: gitleaks (segredos commitados)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/owasp-top-ten
+
+  tenant-isolation:
+    runs-on: ubuntu-latest
+    # Prova real do portão de saída de F0 (docs/roadmap.md): isolamento de tenant sob PgBouncer
+    # de verdade, não mockado. Docker está sempre disponível nos runners do GitHub Actions —
+    # diferente do ambiente de desenvolvimento local onde esta prova pode ficar pendente.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Teste de isolamento de tenant sob PgBouncer real
+        run: pnpm --filter @titan/db run test:pooling

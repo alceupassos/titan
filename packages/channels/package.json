@@ -1,0 +1,8 @@
+{
+  "name": "@titan/channels",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "description": "Adapters de canal (iCal, agregador, Airbnb/Booking/VRBO/Expedia). Escopo: Fase 3 (docs/roadmap.md). Proprietário: adapter-builder, um por invocação."
+}

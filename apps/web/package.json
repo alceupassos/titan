@@ -1,0 +1,22 @@
+{
+  "name": "@titan/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Storefront público + área do hóspede + portal do prestador. Registro 'brand' — ganha seu próprio PRODUCT.md/DESIGN.md quando o trabalho de design real começar (Fase 2).",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "16.2.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.0"
+  }
+}

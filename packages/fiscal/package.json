@@ -1,0 +1,8 @@
+{
+  "name": "@titan/fiscal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "description": "NFS-e, ISS, retenções, tax_rules versionada. Escopo: Fase 4 (docs/roadmap.md). Proprietário: fiscal-specialist. Bloqueado por docs/decisoes-de-negocio.md perguntas 1-2."
+}

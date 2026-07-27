@@ -1,0 +1,26 @@
+# Exporta para fora da VPS (Sentry/Grafana Cloud/Axiom/Better Stack) — nunca subir
+# Prometheus+Loki na mesma máquina do banco de produção (docs/adr/0002, seção 4.2 item 10).
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  batch:
+
+exporters:
+  # Placeholder — endpoint real entra quando houver conta em um provedor externo.
+  logging:
+    loglevel: info
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]

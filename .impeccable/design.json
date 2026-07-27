@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-27T00:00:00Z",
+  "title": "Design System: Titan Stay — Cockpit",
+  "extensions": {
+    "colorMeta": {
+      "bg": { "role": "neutral", "displayName": "Quase-Preto Azulado", "canonical": "oklch(0.16 0.012 250)", "tonalRamp": ["oklch(0.15 0.012 250)", "oklch(0.27 0.012 250)", "oklch(0.39 0.012 250)", "oklch(0.51 0.012 250)", "oklch(0.63 0.012 250)", "oklch(0.75 0.012 250)", "oklch(0.87 0.012 250)", "oklch(0.95 0.012 250)"] },
+      "surface": { "role": "neutral", "displayName": "Superfície", "canonical": "oklch(0.21 0.014 250)", "tonalRamp": ["oklch(0.15 0.014 250)", "oklch(0.27 0.014 250)", "oklch(0.39 0.014 250)", "oklch(0.51 0.014 250)", "oklch(0.63 0.014 250)", "oklch(0.75 0.014 250)", "oklch(0.87 0.014 250)", "oklch(0.95 0.014 250)"] },
+      "surface-2": { "role": "neutral", "displayName": "Superfície Elevada", "canonical": "oklch(0.26 0.016 250)", "tonalRamp": ["oklch(0.15 0.016 250)", "oklch(0.27 0.016 250)", "oklch(0.39 0.016 250)", "oklch(0.51 0.016 250)", "oklch(0.63 0.016 250)", "oklch(0.75 0.016 250)", "oklch(0.87 0.016 250)", "oklch(0.95 0.016 250)"] },
+      "accent": { "role": "primary", "displayName": "Verde Titan", "canonical": "oklch(0.78 0.170 155)", "tonalRamp": ["oklch(0.15 0.170 155)", "oklch(0.28 0.170 155)", "oklch(0.40 0.170 155)", "oklch(0.52 0.170 155)", "oklch(0.64 0.170 155)", "oklch(0.78 0.170 155)", "oklch(0.88 0.170 155)", "oklch(0.95 0.170 155)"] },
+      "negative": { "role": "semantic", "displayName": "Vermelho de Alerta", "canonical": "oklch(0.65 0.200 25)", "tonalRamp": ["oklch(0.15 0.200 25)", "oklch(0.27 0.200 25)", "oklch(0.39 0.200 25)", "oklch(0.51 0.200 25)", "oklch(0.65 0.200 25)", "oklch(0.75 0.200 25)", "oklch(0.87 0.200 25)", "oklch(0.95 0.200 25)"] },
+      "warning": { "role": "semantic", "displayName": "Âmbar de Atenção", "canonical": "oklch(0.80 0.150 85)", "tonalRamp": ["oklch(0.15 0.150 85)", "oklch(0.27 0.150 85)", "oklch(0.39 0.150 85)", "oklch(0.51 0.150 85)", "oklch(0.63 0.150 85)", "oklch(0.72 0.150 85)", "oklch(0.80 0.150 85)", "oklch(0.95 0.150 85)"] },
+      "info": { "role": "semantic", "displayName": "Azul Informativo", "canonical": "oklch(0.70 0.140 250)", "tonalRamp": ["oklch(0.15 0.140 250)", "oklch(0.27 0.140 250)", "oklch(0.39 0.140 250)", "oklch(0.51 0.140 250)", "oklch(0.63 0.140 250)", "oklch(0.70 0.140 250)", "oklch(0.85 0.140 250)", "oklch(0.95 0.140 250)"] },
+      "fg": { "role": "neutral", "displayName": "Texto Principal", "canonical": "oklch(0.97 0.005 250)", "tonalRamp": ["oklch(0.15 0.005 250)", "oklch(0.27 0.005 250)", "oklch(0.39 0.005 250)", "oklch(0.51 0.005 250)", "oklch(0.63 0.005 250)", "oklch(0.75 0.005 250)", "oklch(0.87 0.005 250)", "oklch(0.97 0.005 250)"] },
+      "fg-muted": { "role": "neutral", "displayName": "Texto Muted", "canonical": "oklch(0.72 0.010 250)", "tonalRamp": ["oklch(0.15 0.010 250)", "oklch(0.27 0.010 250)", "oklch(0.39 0.010 250)", "oklch(0.51 0.010 250)", "oklch(0.63 0.010 250)", "oklch(0.72 0.010 250)", "oklch(0.85 0.010 250)", "oklch(0.95 0.010 250)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Número grande do KPI card e títulos de página." },
+      "body": { "displayName": "Body", "purpose": "Texto corrido, descrições, células não-numéricas." },
+      "label": { "displayName": "Label", "purpose": "Rótulo pequeno acima do número, cabeçalho de coluna, rótulo de campo." },
+      "numeric": { "displayName": "Numeric", "purpose": "Todo valor monetário e toda célula numérica de tabela — Geist Mono, tabular-nums, nunca a sans." }
+    },
+    "shadows": [
+      { "name": "hover-lift", "value": "0 4px 16px oklch(0 0 0 / 24%)", "purpose": "Card interativo ao passar o mouse — sinaliza clicável, nunca decoração em repouso." },
+      { "name": "modal", "value": "0 16px 48px oklch(0 0 0 / 40%)", "purpose": "Modal, dialog, popover — separação do fundo sem blur/glass." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Ease-out-quint padrão para transições de estado (hover, expand, dropdown). Sem bounce, sem elastic." },
+      { "name": "duration-fast", "value": "120ms", "purpose": "Hover, foco, toggle de estado pequeno." },
+      { "name": "duration-standard", "value": "200ms", "purpose": "Abertura de modal, dropdown, drawer." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "KPI Card",
+      "kind": "card",
+      "refersTo": "kpi-card",
+      "description": "Rótulo pequeno + número grande tabular + badge de variação + sparkline. Máximo 4 por linha, planos em repouso.",
+      "html": "<div class=\"ds-kpi-card\"><div class=\"ds-kpi-label\">Total de Reservas</div><div class=\"ds-kpi-row\"><span class=\"ds-kpi-value\">270</span><span class=\"ds-kpi-badge ds-kpi-badge--up\">↑ 6.25%</span></div></div>",
+      "css": ".ds-kpi-card { background: oklch(0.21 0.014 250); color: oklch(0.97 0.005 250); border-radius: 1.25rem; padding: 1.25rem; border: 1px solid oklch(1 0 0 / 8%); transition: box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-kpi-card:hover { box-shadow: 0 4px 16px oklch(0 0 0 / 24%); } .ds-kpi-label { font: 500 0.8125rem/1.2 'Geist', system-ui, sans-serif; letter-spacing: 0.01em; color: oklch(0.72 0.010 250); margin-bottom: 0.5rem; } .ds-kpi-row { display: flex; align-items: baseline; gap: 0.75rem; } .ds-kpi-value { font: 600 clamp(1.5rem, 2vw, 2rem)/1.1 'Geist Mono', monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; } .ds-kpi-badge { font: 500 0.75rem/1 'Geist Mono', monospace; padding: 2px 8px; border-radius: 9999px; } .ds-kpi-badge--up { background: oklch(0.78 0.170 155 / 18%); color: oklch(0.78 0.170 155); } .ds-kpi-badge--down { background: oklch(0.65 0.200 25 / 18%); color: oklch(0.65 0.200 25); }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill-positive",
+      "description": "Cor semântica sempre acompanhada de texto — nunca cor isolada. Variantes positive/negative/warning.",
+      "html": "<span class=\"ds-status-pill ds-status-pill--positive\">Pago</span>",
+      "css": ".ds-status-pill { display: inline-flex; align-items: center; font: 500 0.75rem/1 'Geist', system-ui, sans-serif; padding: 2px 10px; border-radius: 9999px; } .ds-status-pill--positive { background: oklch(0.78 0.170 155); color: oklch(0.18 0.030 155); } .ds-status-pill--negative { background: oklch(0.65 0.200 25); color: oklch(0.97 0.005 250); } .ds-status-pill--warning { background: oklch(0.80 0.150 85); color: oklch(0.18 0.030 155); }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela — fundo verde Titan, reservado, nunca mais de um por agrupamento.",
+      "html": "<button class=\"ds-btn-primary\">Confirmar Reserva</button>",
+      "css": ".ds-btn-primary { font: 500 0.875rem/1 'Geist', system-ui, sans-serif; background: oklch(0.78 0.170 155); color: oklch(0.18 0.030 155); padding: 10px 20px; border: none; border-radius: 0.75rem; cursor: pointer; transition: background 120ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: oklch(0.72 0.170 155); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.78 0.170 155); outline-offset: 2px; } .ds-btn-primary:active { background: oklch(0.66 0.170 155); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Ação secundária — transparente, densidade sem ruído visual.",
+      "html": "<button class=\"ds-btn-ghost\">Cancelar</button>",
+      "css": ".ds-btn-ghost { font: 500 0.875rem/1 'Geist', system-ui, sans-serif; background: transparent; color: oklch(0.72 0.010 250); padding: 10px 20px; border: 1px solid oklch(1 0 0 / 8%); border-radius: 0.75rem; cursor: pointer; transition: background 120ms cubic-bezier(0.16, 1, 0.3, 1), color 120ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-ghost:hover { background: oklch(0.26 0.016 250); color: oklch(0.97 0.005 250); } .ds-btn-ghost:focus-visible { outline: 2px solid oklch(0.78 0.170 155); outline-offset: 2px; }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Item de sidebar com rótulo de texto (nunca só ícone), estado ativo marcado pelo acento no indicador, não pela linha inteira.",
+      "html": "<a class=\"ds-nav-item ds-nav-item--active\" href=\"#\"><span class=\"ds-nav-dot\"></span>Calendário</a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 0.625rem; height: 40px; padding: 0 0.75rem; font: 500 0.875rem/1 'Geist', system-ui, sans-serif; color: oklch(0.72 0.010 250); border-radius: 0.75rem; text-decoration: none; transition: background 120ms cubic-bezier(0.16, 1, 0.3, 1), color 120ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-nav-item:hover { background: oklch(0.26 0.016 250); color: oklch(0.97 0.005 250); } .ds-nav-dot { width: 6px; height: 6px; border-radius: 9999px; background: oklch(0.72 0.010 250 / 40%); } .ds-nav-item--active { color: oklch(0.97 0.005 250); background: oklch(0.26 0.016 250); } .ds-nav-item--active .ds-nav-dot { background: oklch(0.78 0.170 155); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Torre de Controle",
+    "overview": "O cockpit é uma torre de controle: supervisão calma e de alto risco sobre muitas partes em movimento — reservas, canais, dinheiro, limpeza, evidência — a partir de uma única superfície densa e legível de relance. Nada aqui é uma peça de marketing; é uma ferramenta usada oito horas por dia por quem precisa confiar em cada número que vê. A personalidade é profissional, transparente, eficiente: confiante porque todo valor tem lastro auditável, plana sobre o que é ação de agente versus ação de pessoa, e rápida de escanear ao longo de um turno de 20 rotas. O sistema rejeita explicitamente três coisas que a categoria 'dashboard SaaS' faz por reflexo e que quebram uma ferramenta de uso real: glow/glassmorphism atrás de dado, barra hachurada em série de valor real, e múltiplos gradientes saturados diferentes por conjunto de KPI cards.",
+    "keyCharacteristics": [
+      "Escuro por padrão, denso (linha de 40px), com modo confortável como alternativa.",
+      "Um único acento verde, usado com raridade — status positivo, CTA primário, nav ativo.",
+      "Toda cifra e todo número de tabela em fonte mono com figuras tabulares.",
+      "Plano em repouso; elevação só como resposta a interação.",
+      "Ator sempre visível: rótulo de agente nunca se confunde com o de uma pessoa."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "O acento verde é usado em no máximo ~10% de qualquer tela — a raridade é o que faz o acento significar algo.", "section": "colors" },
+      { "name": "The Status-Needs-Text Rule", "body": "Nenhum StatusPill comunica estado só por cor — cor mais texto, sempre.", "section": "colors" },
+      { "name": "The Semantic-Only Rule", "body": "Positive/negative/warning/info existem só para status e variação, nunca como decoração de card ou fundo de seção.", "section": "colors" },
+      { "name": "The Tabular-Nums Rule", "body": "Nenhum número financeiro ou de tabela usa a fonte sans — sempre Geist Mono com tabular-nums.", "section": "typography" },
+      { "name": "The Interaction-Only Lift Rule", "body": "Superfícies em repouso não têm sombra; profundidade vem de degraus de superfície. Sombra só aparece como resposta a hover, foco ou modal.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar Geist Mono com tabular-nums em todo valor monetário e toda célula numérica.",
+      "Do manter o verde Titan raro — status positivo, CTA primário, nav ativo.",
+      "Do parear cor semântica com texto em todo StatusPill.",
+      "Do manter KPI cards planos em repouso, com elevação só no hover.",
+      "Do limitar a 4 KPI cards por linha, cada um com os quatro estados.",
+      "Do rotular toda ação de agente com agent:<nome> v<versão>.",
+      "Do usar sidebar com rótulos de texto, nunca só ícones."
+    ],
+    "donts": [
+      "Don't usar glow ou glassmorphism atrás de número, tabela ou texto.",
+      "Don't usar barra hachurada em série de valor real.",
+      "Don't usar mais de um gradiente saturado por conjunto de KPI cards.",
+      "Don't parecer clone barato de template Airbnb, planilha corporativa fria, ou app social de consumo.",
+      "Don't usar border-left/border-right colorido acima de 1px como faixa decorativa.",
+      "Don't usar background-clip: text com gradiente.",
+      "Don't deixar contraste de texto abaixo de 4,5:1 (corpo) ou 3:1 (texto grande)."
+    ]
+  }
+}

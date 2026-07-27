@@ -1,0 +1,22 @@
+{
+  "name": "@titan/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "description": "Entidades, invariantes e máquinas de estado. ZERO I/O — nenhum import de banco, framework, ou rede. Proprietário exclusivo: domain-modeler.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@titan/money": "workspace:*",
+    "@titan/dates": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "typescript": "^5.7.0"
+  }
+}

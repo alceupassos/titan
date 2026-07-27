@@ -1,0 +1,4 @@
+-- placeholder: gerado em runtime pelo script de bootstrap a partir de POSTGRES_PASSWORD.
+-- Nunca commitar hash real de senha de produção neste arquivo (block-secrets.mjs cobre .env,
+-- não este arquivo especificamente — tratar como segredo mesmo assim).
+"titan" "md5_hash_gerado_no_bootstrap"

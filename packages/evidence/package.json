@@ -1,0 +1,8 @@
+{
+  "name": "@titan/evidence",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "description": "Captura, hash chain, assurance levels A0-A3. Escopo: Fase 6 (docs/roadmap.md). Proprietário exclusivo: evidence-specialist. I10 — nenhuma rota de exclusão, para nenhum papel."
+}
