@@ -66,6 +66,20 @@ export function defineAbilityFor(role: Role): AppAbility {
       // (`approve`/`reject`) não acrescentariam nenhuma garantia adicional aqui, só duplicariam a
       // checagem. `titan.auditor` não precisa de regra extra: já tem `can("read","all")`.
       can(["read", "approve"], "approval_request");
+      // Fase 4, Passo 4c (docs/fase-atual.md): cockpit fiscal (apps/console/app/(staff)/fiscal).
+      // NOTA sobre a premissa desta faixa: o prompt que abriu este passo assumia que `titan.finance`
+      // só tinha `can("read", [...])` sobre `fiscal_document` até aqui — na verdade este case já
+      // concede `can(["create","update"], ["ledger","fiscal_document"])` acima (linha anterior a
+      // esta), então "reprocessar" (que é a Server Action `retryInvoiceIssuanceAction` gravando uma
+      // intenção — ver ./actions.ts) já está coberto por "update", sem precisar de regra nova. O
+      // único verbo que faltava é "approve": "cancelar" (`cancelInvoiceAction`) é uma decisão mais
+      // consequente (I7 — documento fiscal emitido só sai de circulação por cancelamento formal, e
+      // o cancelamento de verdade no provedor depende de outra faixa/worker chamá-lo depois) do que
+      // uma correção de "update" comum — mesma lógica já usada para `approval_request` acima: uma
+      // única ability cobrindo a decisão, em vez de inventar duas (ex. "cancel"/"reprocess"), que
+      // não acrescentariam garantia extra aqui (a distinção real entre as duas operações já vem do
+      // Zod na borda + do filtro de status na própria Server Action, não de uma ability separada).
+      can("approve", "fiscal_document");
       cannot("update", "rate"); // finance não altera tarifa — seção 7.1
       break;
     case "titan.revenue":

@@ -36,6 +36,13 @@
       "when": 1785212221904,
       "tag": "0004_channel_distribution",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785236749957,
+      "tag": "0005_fiscal",
+      "breakpoints": true
     }
   ]
 }

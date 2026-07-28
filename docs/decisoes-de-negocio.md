@@ -17,20 +17,18 @@ perguntas 1–3 respondidas.
 **Pergunta:** Locação por temporada pura (LC 8.245/91, até 90 dias) ou hospedagem com serviços
 (LC 116/2003 item 9.01)?
 
-**Resposta:** _pendente_
-
-**Default assumido enquanto pendente:** hospedagem com serviços (cenário típico com limpeza
-recorrente, enxoval e gestão profissional). **Precisa de confirmação do contador antes do portão
-da Fase 4.**
+**Resposta:** confirmada — **hospedagem com serviços** (LC 116/2003, item 9.01: limpeza
+recorrente, enxoval, gestão profissional). Respondida ao abrir a Fase 4 (docs/roadmap.md).
+**Ainda precisa de confirmação formal do contador antes de produção real** — a resposta aqui
+libera o desenho e a implementação do módulo fiscal, não substitui a validação contábil.
 
 ## 2. Quem emite a nota
 
 **Pergunta:** Titan (prestadora de serviço de hospedagem) ou o proprietário (locador)?
 
-**Resposta:** _pendente_
-
-**Default assumido enquanto pendente:** nenhum — bloqueia o desenho de `packages/fiscal` além do
-esqueleto de porta (`FiscalGateway`).
+**Resposta:** confirmada — **a Titan emite** a NFS-e, como prestadora do serviço de hospedagem
+perante o hóspede (não o proprietário do imóvel). Respondida ao abrir a Fase 4. Mesma ressalva:
+precisa de confirmação formal do contador/jurídico antes de produção real.
 
 ## 3. Vínculo da camareira
 

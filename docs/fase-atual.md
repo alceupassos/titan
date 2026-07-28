@@ -1,13 +1,12 @@
 # Estado do trabalho
 
-**Fase atual:** Fase 3 (Distribuição) — **todos os 5 passos do plano aprovado concluídos**:
-domínio de canal/reconciliação, migration 0004, contratos Zod, adapter iCal (4 canais) + adapter
-de automação de navegador do Airbnb (ADR-0020, decisão de risco explícita) em faixas paralelas,
-fila de sincronização com coalescing/DLQ + reconciliação diária + ingestão de reserva externa no
-worker, painel real de `/distribuicao`, e integração final (comissão de canal no ledger,
-propagação de bloqueio I9). Ver seção "Fase 3 — Distribuição" abaixo para o detalhe. Fases 0-2
-seguem fechadas como já registrado (commit `97aaa68`, push para
-`https://github.com/alceupassos/titan`).
+**Fase atual:** Fase 4 (Fiscal) — **todos os 6 passos do plano aprovado concluídos**: domínio
+fiscal (tax_rules versionada, idempotência forte via chave natural), migration 0005, contratos
+Zod, adapter Focus NFe + worker de emissão assíncrona disparada por captura de pagamento em
+faixas paralelas, fila real de `/fiscal`, cofre WORM (implementação local de dev), e integração
+final (reconciliação do mirror local do worker com o `FiscalGateway` real, conectado ao
+bootstrap). Ver seção "Fase 4 — Fiscal" abaixo para o detalhe. Fases 0-3 seguem fechadas como já
+registrado (commit `30ce0eb`, push para `https://github.com/alceupassos/titan`).
 
 **Gap conhecido 1:** VPS Contabo real ainda não provisionada. "Deploy sem downtime" e
 "restauração de backup cronometrada" têm scripts reais que rodam contra Docker Compose local —
@@ -362,6 +361,93 @@ assistida no cockpit). RLS+grants nas 3 tabelas; journal/snapshot via `drizzle-k
 já existentes); `next build` real de `apps/console` e `apps/web` sem regressão após a integração
 final. Nenhuma migration já commitada foi alterada.
 
-**Próximo passo:** commit/push, depois plan mode para a Fase 4 (Fiscal) — **bloqueada pelas
-perguntas 1 e 2 de `docs/decisoes-de-negocio.md`** (regime da operação e quem emite a nota),
-ainda pendentes; não posso planejar essa fase sem essas respostas.
+**Próximo passo (histórico):** plan mode para a Fase 4 — as perguntas 1 e 2 de
+`docs/decisoes-de-negocio.md` foram respondidas ao abrir a fase (hospedagem com serviços; Titan
+emite a nota); ver seção seguinte para o resultado.
+
+## Fase 4 — Fiscal (NFS-e via Focus NFe, tax_rules versionada, cofre WORM)
+
+Plano aprovado em plan mode. **Decisões de negócio confirmadas nesta fase** (perguntas 1-2 de
+`docs/decisoes-de-negocio.md`, que bloqueavam o portão desta fase desde a Rodada 0): regime de
+hospedagem com serviços (LC 116/2003, item 9.01 — ISS incide) e a Titan emite a NFS-e como
+prestadora. **Ambas ainda precisam de confirmação formal do contador antes de produção real** —
+liberam o desenho/implementação, não substituem a validação contábil. Provedor de NFS-e (ADR-0006
+já decidia "via 3 — intermediário" como MVP): **Focus NFe**.
+
+**Passo 1 — `packages/domain`:** `packages/domain/src/fiscal/` — `TaxRule`
+(`aliquotBasisPoints` inteiro, nunca float — regra dura "alíquota como tabela versionada, nunca
+código"), `resolveTaxRuleForDate` (lança `NoTaxRuleForDateError` sem regra vigente, nunca aplica
+zero silenciosamente; lança erro também se houver sobreposição ambígua),
+`calculateTaxAmountCents`, `ServiceInvoiceInput`/`IssuedInvoice`/`InvoiceStatus`,
+`buildNaturalKey` (determinística — âncora da idempotência forte). Reusa
+`FiscalDocumentStatus`/`assertNotEditingIssuedDocument` já existentes desde a Fase 0 (I7), não
+recria. 11 testes novos (75 no total do pacote).
+
+**Passo 2 — `packages/db`:** migration `0005_fiscal.sql` — `tax_rules`, `fiscal_documents`
+(`naturalKey` UNIQUE — âncora de idempotência forte, persistida antes de qualquer chamada ao
+gateway). RLS+grants; journal/snapshot via `drizzle-kit generate` — 6 migrations (0000-0005)
+descobertas em ordem.
+
+**Passo 3 — `packages/contracts`:** `RetryInvoiceIssuanceSchema`, `CancelInvoiceSchema`
+(comentário obrigatório no cancelamento).
+
+**Passo 4 — 3 faixas paralelas:**
+- **4a — `packages/fiscal/src/port.ts` + `src/focus-nfe/`:** interface `FiscalGateway`
+  (`issue`/`cancel`/`substitute`/`query`/`fetchPdf`/`fetchXml`, `naturalKey` explícito em
+  `issue`/`substitute` — nunca gerado pelo gateway) + adapter Focus NFe (REST, token via env).
+  Incertezas reais sobre a API documentadas como TODO (mecanismo de auth, endpoints exatos),
+  nunca fingidas como certeza. 15 testes, sem conta real configurada nesta máquina.
+- **4b — `apps/worker`:** job de emissão fiscal assíncrona (`fiscal-issuance`, coalescing por
+  `jobId = naturalKey`), disparado de verdade logo após a confirmação de `payment_captured` em
+  `jobs/process-webhook.ts`. Idempotência forte provada em `fiscal-repo.ts::insertFiscalDocumentIfNew`
+  (`INSERT ... ON CONFLICT (natural_key) DO NOTHING`, antes de qualquer chamada de rede).
+  Distingue rejeição de negócio (marca `rejected`, não relança) de falha de rede (relança para
+  retry/backoff/DLQ). 5 testes novos.
+- **4c — `apps/console` `/fiscal`:** fila real — KPIs (pendentes/rejeitadas/emitidas no
+  mês/ISS apurado), lista com reprocessar e cancelar (motivo obrigatório). `packages/auth`
+  ganhou `can("approve", "fiscal_document")` para `titan.finance` (que já tinha `read`/`update`
+  desde a Fase 0).
+
+**Passo 5 — cofre WORM:** `packages/fiscal/src/vault/` — interface `FiscalVault`
+(`store`/`fetch`, write-once real: `FiscalDocumentAlreadyStoredError` num segundo `store` para a
+mesma referência) + `LocalFileFiscalVault` (dev, `chmod` best-effort — **não é WORM de
+verdade**, documentado explicitamente). Adapter S3-compatível com Object Lock real fica para
+quando houver bucket/credenciais provisionados. 3 testes novos.
+
+**Passo 6 — integração final:** migrado o mirror local do `FiscalGateway` em `apps/worker`
+(criado pela faixa 4b antes de `packages/fiscal` terminar) para o tipo real de `@titan/fiscal` —
+mesma técnica de reconciliação já usada com sucesso na Fase 3 para `@titan/channels`. Bootstrap
+(`apps/worker/src/index.ts`) agora usa `createFocusNfeAdapter` de verdade quando
+`FOCUS_NFE_API_URL`/`FOCUS_NFE_API_TOKEN` estão configurados, com fallback honesto (erro claro,
+tratado como falha de rede/retry) quando não estão.
+
+**Dívida técnica nova, documentada e não escondida:**
+- `FiscalGatewayRejectionError` (distinção rejeição-de-negócio vs. falha-de-rede) está definida e
+  testada no worker, mas **nenhum caminho do adapter Focus NFe real a lança hoje** — emissão de
+  NFS-e é tipicamente assíncrona no provedor (retorna "processando", rejeição real só aparece
+  depois via `query()`, que este job não chama ainda). Até isso ser implementado, toda falha de
+  `issue()` cai no ramo de retry/backoff, mesmo quando seria, na prática, uma rejeição definitiva
+  — comportamento correto por precaução, menos eficiente que o ideal.
+- Cofre WORM é só a implementação local de dev — sem bucket S3-compatível com Object Lock real
+  provisionado nesta máquina, a guarda de 5 anos exigida pela seção 9.6 não está garantida de
+  verdade (`chmod` local não impede um processo com permissão de apagar o arquivo).
+- Gatilho de emissão usa `takerDocument` placeholder e município/serviço via env — o schema de
+  `reservations`/`payment_intents` ainda não tem CPF do hóspede nem município da unidade
+  modelados (bounded context `crm`/`inventory`, fases futuras).
+- Reprocessar/cancelar pelo cockpit têm a parte de banco real, mas a execução de fato junto ao
+  provedor (chamar `FiscalGateway.cancel()`/reenviar `issue()`) depende de comunicação entre
+  processos (Next ↔ worker) não implementada — mesmo padrão de dívida já registrado nas Fases 2-3
+  para reembolso/retry de sync de canal.
+- Alíquotas/`tax_rules` de exemplo (se algum dado de amostra usar valor placeholder) precisam de
+  confirmação da assessoria tributária antes de produção — a transição CBS/IBS de 2026 ainda não
+  tem uma fonte legal estável para codificar regras reais.
+- Sem conta real do Focus NFe nesta máquina — nenhuma chamada de rede real foi verificada.
+
+**Verificação real feita nesta sessão:** `pnpm turbo run typecheck` limpo nos 17 pacotes;
+`pnpm turbo run test` com todos os testes passando (75 domain + 23 channels + 45 worker + 18
+fiscal, mais os já existentes); `next build` real de `apps/console` sem regressão (rota `/fiscal`
+real, 28 rotas no total). Nenhuma migration já commitada foi alterada.
+
+**Próximo passo:** commit/push, depois plan mode para a Fase 5 (Financeiro) — **depende da
+pergunta 4 de `docs/decisoes-de-negocio.md`** (contrato de administração: quem paga o quê —
+comissão, amenities, material de limpeza, enxoval, manutenção, depreciação), ainda pendente.

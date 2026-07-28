@@ -12,3 +12,5 @@ export * from "./approval-request";
 export * from "./listing-mapping";
 export * from "./channel-sync-log";
 export * from "./divergence";
+export * from "./tax-rule";
+export * from "./fiscal-document";

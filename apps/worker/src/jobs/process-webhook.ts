@@ -11,6 +11,26 @@
 //      dupla entrada (I3) e confirma a reserva;
 //   f. loga cada passo, sem PAN/PII (I4/LGPD básico) — nunca loga `raw` do gateway aqui (o job
 //      nem recebe `raw`, ver nota em `../queue.ts`).
+//   g. (Fase 4, Passo 4b) — imediatamente após confirmar a reserva, enfileira a emissão fiscal
+//      (`event: "payment_captured"`, `../fiscal-queue.ts`) — o gatilho mais natural e realista da
+//      seção 9.6 ("checkout, captura, virada de mês"): é o mesmo ponto onde a reserva vira
+//      `confirmed` e o lançamento de ledger é postado, então o valor bruto (`grossAmountCents`) e
+//      o `reservationId` já estão disponíveis sem nenhuma consulta extra. `enqueueFiscalIssuance`
+//      é OPCIONAL nos deps (default: não enfileira nada) — mantém todos os testes existentes
+//      deste arquivo passando sem precisar injetar a fila fiscal; `index.ts` (bootstrap real) é
+//      quem passa a função de enfileiramento de verdade.
+//
+//      DÍVIDA TÉCNICA documentada (não escondida — mesmo espírito da nota sobre
+//      `gatewayFeeAmountCents = 0` abaixo): nem `reservations` nem `payment_intents`
+//      (packages/db/src/schema/) têm hoje uma coluna para o CPF/CNPJ do hóspede (tomador do
+//      serviço) nem para o código de município da unidade — os dois são bounded contexts
+//      (`identity`/`crm` para o hóspede, `inventory` para a unidade) ainda não modelados. Por
+//      isso `deps.fiscalDefaults` carrega um `municipalityCode`/`serviceCode` fixo (configurável,
+//      não hardcoded em dois lugares) e `takerDocument` usa um placeholder claro
+//      (`"00000000000"`) até esses campos existirem — igual ao propósito de
+//      `NoTaxRuleForDateError`/`FiscalGatewayRejectionError`, que existem exatamente para nunca
+//      deixar isso passar batido: um documento com CPF placeholder é esperado a ser REJEITADO
+//      pelo provedor real (rejeição de negócio, não de rede) até este gap ser fechado.
 import {
   canTransitionPayment,
   entriesForPaymentCaptured,
@@ -21,8 +41,20 @@ import {
 import type { TenantContext } from "@titan/db";
 import type { CurrencyCode } from "@titan/money";
 import type { AdminDb } from "../admin-db";
+import { civilDateFromEpochMs } from "../channel-sync-dates";
+import type { FiscalIssuanceJobPayload } from "../fiscal-queue";
 import type { PaymentRepo } from "../payment-repo";
 import type { WebhookJobPayload } from "../queue";
+
+/** Defaults usados para montar o payload de emissão fiscal disparada por `payment_captured` — ver
+ * nota de dívida técnica no topo do arquivo sobre `takerDocument`/`municipalityCode` ainda não
+ * terem coluna própria. */
+export interface FiscalIssuanceDefaults {
+  readonly municipalityCode: string;
+  readonly serviceCode: string;
+}
+
+const PLACEHOLDER_TAKER_DOCUMENT = "00000000000";
 
 export interface ProcessWebhookDeps {
   adminDb: Pick<AdminDb, "findPaymentIntentByExternalId">;
@@ -31,6 +63,13 @@ export interface ProcessWebhookDeps {
    * `postDoubleEntry`/`PostDoubleEntryParams.createdAtEpochMs`). */
   now(): number;
   idGenerator(): string;
+  /** Enfileira a emissão fiscal (`../fiscal-queue.ts::enqueueFiscalIssuanceJob`, tipicamente) —
+   * OPCIONAL: quando ausente, o passo (g) é pulado inteiramente (sem alterar nenhum comportamento
+   * já existente/testado deste job). Assinatura deliberadamente estreita (só o payload, sem o tipo
+   * de retorno de `EnqueueFiscalIssuanceResult`) para não acoplar este arquivo à forma exata da
+   * fila BullMQ. */
+  enqueueFiscalIssuance?(payload: FiscalIssuanceJobPayload): Promise<unknown>;
+  fiscalDefaults?: FiscalIssuanceDefaults;
   logger?: Pick<Console, "log" | "error" | "warn">;
 }
 
@@ -154,4 +193,43 @@ export async function processWebhookJob(payload: WebhookJobPayload, deps: Proces
     `[worker] lançamentos postados (${entries.length}) e reserva ${intent.reservationId} confirmada ` +
       `(payment_intent ${intent.id}).`,
   );
+
+  // Passo (g) — ver nota de topo do arquivo. Enfileirado DEPOIS de confirmar a reserva e postar o
+  // ledger (ambos já persistidos) — uma falha ao enfileirar a emissão fiscal NUNCA desfaz nem
+  // impede o que já foi confirmado; é logada e engolida aqui, não relançada, porque relançar
+  // faria o BullMQ reprocessar o job de webhook INTEIRO (reautorizando a transição de status e,
+  // pior, tentando postar o MESMO lançamento de ledger de novo — `postDoubleEntry`/
+  // `insertLedgerEntries` não são chamados de forma idempotente hoje, então isso duplicaria
+  // dinheiro). Enfileirar a emissão fiscal, ao contrário, É seguro de tentar de novo depois (o
+  // próprio worker de fiscal-issuance tem retry/backoff próprio, `../fiscal-queue.ts`) — mas essa
+  // nova tentativa precisa vir de fora deste job (ex.: reprocesso manual, ou virada de mês como
+  // rede de segurança), não de um retry automático do webhook.
+  if (deps.enqueueFiscalIssuance && deps.fiscalDefaults) {
+    const fiscalPayload: FiscalIssuanceJobPayload = {
+      tenantId: ctx.tenantId,
+      reservationId: intent.reservationId,
+      event: "payment_captured",
+      referenceDateISO: civilDateFromEpochMs(deps.now()),
+      municipalityCode: deps.fiscalDefaults.municipalityCode,
+      serviceCode: deps.fiscalDefaults.serviceCode,
+      baseAmountCents: grossAmountCents,
+      currency: intent.currency,
+      // TODO (dívida técnica, ver nota de topo do arquivo): CPF/CNPJ real do hóspede ainda não
+      // tem coluna em `reservations`/`payment_intents` — placeholder claro até o bounded context
+      // `identity`/`crm` existir. Um provedor real rejeitaria esta emissão por CPF inválido
+      // (rejeição de NEGÓCIO, `FiscalGatewayRejectionError`), nunca silenciosamente aceitaria.
+      takerDocument: PLACEHOLDER_TAKER_DOCUMENT,
+      description: `Hospedagem — reserva ${intent.reservationId}`,
+    };
+
+    try {
+      await deps.enqueueFiscalIssuance(fiscalPayload);
+      log.log(`[worker] emissão fiscal enfileirada (reserva ${intent.reservationId}, evento payment_captured).`);
+    } catch (err) {
+      log.error(
+        `[worker] falha ao enfileirar emissão fiscal (reserva ${intent.reservationId}): ${(err as Error).message}. ` +
+          "Não relançado (a reserva já está confirmada e o ledger já foi postado) — precisa de reprocesso manual.",
+      );
+    }
+  }
 }

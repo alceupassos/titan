@@ -4,5 +4,17 @@
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
-  "description": "NFS-e, ISS, retenções, tax_rules versionada. Escopo: Fase 4 (docs/roadmap.md). Proprietário: fiscal-specialist. Bloqueado por docs/decisoes-de-negocio.md perguntas 1-2."
+  "types": "./src/index.ts",
+  "description": "NFS-e, ISS, retenções, tax_rules versionada. Escopo: Fase 4 (docs/roadmap.md). Proprietário: fiscal-specialist. Perguntas 1-2 de docs/decisoes-de-negocio.md confirmadas (hospedagem com serviços, Titan emite). Passo 4a: FiscalGateway (port.ts) + adapter Focus NFe (ADR-0006).",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@titan/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "typescript": "^5.7.0"
+  }
 }

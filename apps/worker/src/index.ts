@@ -22,6 +22,16 @@ import { reconcileChannelsJob } from "./jobs/reconcile-channels";
 import { createIngestionQueue, createIngestionWorker, scheduleIngestion } from "./ingestion-queue";
 import { ingestExternalReservationsJob } from "./jobs/ingest-external-reservations";
 import { createDrizzleExternalReservationRepo } from "./external-reservation-repo";
+import { createDrizzleFiscalRepo } from "./fiscal-repo";
+import type { FiscalGateway } from "@titan/fiscal";
+import { createFocusNfeAdapter } from "@titan/fiscal";
+import {
+  createFiscalIssuanceQueue,
+  createFiscalIssuanceWorker,
+  enqueueFiscalIssuanceJob,
+  registerFiscalIssuanceDlq,
+} from "./fiscal-queue";
+import { issueFiscalDocumentJob } from "./jobs/issue-fiscal-document";
 
 const config = loadConfigFromEnv();
 const resolveAdapter = buildAdapterResolver(config);
@@ -43,6 +53,87 @@ const paymentRepo = createDrizzlePaymentRepo();
 
 const webhookQueue = createWebhookQueue(redisConnection);
 
+// Fila/worker de emissão fiscal (Fase 4, Passo 4b — docs/fase-atual.md) — criada ANTES do
+// `webhookWorker` abaixo porque o passo (g) de `jobs/process-webhook.ts` enfileira nela logo
+// depois de confirmar a reserva de um pagamento capturado.
+const fiscalRepo = createDrizzleFiscalRepo();
+const fiscalIssuanceQueue = createFiscalIssuanceQueue(redisConnection);
+
+// FiscalGateway real (Focus NFe, packages/fiscal/src/focus-nfe/adapter.ts — Fase 4, Passo 4a,
+// reconciliado no Passo 5 de integração final desta fase, mesmo padrão de migração
+// mirror-local -> import real já usado para @titan/channels na Fase 3). Sem
+// FOCUS_NFE_API_URL/FOCUS_NFE_API_TOKEN configurados nesta máquina (sem conta real), cai num
+// placeholder que lança erro claro — tratado como falha de REDE/infra por
+// jobs/issue-fiscal-document.ts (nunca como rejeição de negócio), o BullMQ agenda retry/backoff
+// até esgotar tentativas e cair no DLQ — nenhuma nota é silenciosamente "emitida" por um gateway
+// fake.
+class FiscalGatewayNotConfiguredError extends Error {
+  constructor() {
+    super(
+      "FOCUS_NFE_API_URL/FOCUS_NFE_API_TOKEN ausentes do env — FiscalGateway real não configurado " +
+        "nesta sessão. Emissão fiscal fica em retry/DLQ até as credenciais serem configuradas.",
+    );
+    this.name = "FiscalGatewayNotConfiguredError";
+  }
+}
+const notConfiguredFiscalGateway: FiscalGateway = {
+  issue: async () => {
+    throw new FiscalGatewayNotConfiguredError();
+  },
+  cancel: async () => {
+    throw new FiscalGatewayNotConfiguredError();
+  },
+  substitute: async () => {
+    throw new FiscalGatewayNotConfiguredError();
+  },
+  query: async () => {
+    throw new FiscalGatewayNotConfiguredError();
+  },
+  fetchPdf: async () => {
+    throw new FiscalGatewayNotConfiguredError();
+  },
+  fetchXml: async () => {
+    throw new FiscalGatewayNotConfiguredError();
+  },
+};
+
+const focusNfeApiUrl = process.env.FOCUS_NFE_API_URL;
+const focusNfeApiToken = process.env.FOCUS_NFE_API_TOKEN;
+const fiscalGateway: FiscalGateway =
+  focusNfeApiUrl && focusNfeApiToken
+    ? createFocusNfeAdapter({ apiUrl: focusNfeApiUrl, apiToken: focusNfeApiToken })
+    : notConfiguredFiscalGateway;
+if (fiscalGateway === notConfiguredFiscalGateway) {
+  console.warn(
+    "[worker] FOCUS_NFE_API_URL/FOCUS_NFE_API_TOKEN ausentes — emissão fiscal ficará em retry/DLQ " +
+      "até as credenciais serem configuradas.",
+  );
+}
+
+const fiscalIssuanceWorker = createFiscalIssuanceWorker(redisConnection, (payload) =>
+  issueFiscalDocumentJob(payload, {
+    repo: fiscalRepo,
+    gateway: fiscalGateway,
+  }),
+);
+registerFiscalIssuanceDlq(fiscalIssuanceWorker, {
+  markPendingRejectedByNaturalKey: (tenantId, naturalKey, reason) =>
+    fiscalRepo.markPendingFiscalDocumentRejectedByNaturalKey({ tenantId, actorId: "fiscal-issuance-dlq" }, naturalKey, reason),
+});
+fiscalIssuanceWorker.on("error", (err) => {
+  console.error("[worker] erro no worker de emissão fiscal:", err);
+});
+
+// Defaults de município/serviço usados pelo gatilho `payment_captured` (ver nota de dívida
+// técnica em `jobs/process-webhook.ts`) — São Paulo (IBGE 3550308) + item 9.01 LC 116/2003
+// (hospedagem), o único par com `tax_rule` cadastrada hoje (packages/domain/src/fiscal/service-invoice.ts,
+// comentário de `MunicipalityCode`). Vem do env para não hardcodar um segundo lugar quando outro
+// município for cadastrado.
+const fiscalDefaults = {
+  municipalityCode: process.env.FISCAL_DEFAULT_MUNICIPALITY_CODE ?? "3550308",
+  serviceCode: process.env.FISCAL_DEFAULT_SERVICE_CODE ?? "9.01",
+};
+
 const httpServer = createHttpServer({
   resolveAdapter,
   insertWebhookEventIfNew: (gateway, externalEventId) => adminDb.insertWebhookEventIfNew(gateway, externalEventId),
@@ -57,6 +148,8 @@ const webhookWorker = createWebhookWorker(redisConnection, (payload) =>
     paymentRepo,
     now: () => Date.now(),
     idGenerator: () => randomUUID(),
+    enqueueFiscalIssuance: (fiscalPayload) => enqueueFiscalIssuanceJob(fiscalIssuanceQueue, fiscalPayload),
+    fiscalDefaults,
   }),
 );
 
@@ -156,9 +249,11 @@ process.on("SIGTERM", async () => {
   await reconciliationQueue.close();
   await ingestionWorker.close();
   await ingestionQueue.close();
+  await fiscalIssuanceWorker.close();
+  await fiscalIssuanceQueue.close();
   await adminDb.close();
   await redisConnection.quit();
   process.exit(0);
 });
 
-console.log("[worker] Titan Stay worker iniciado (HTTP de webhooks + BullMQ: pagamentos + canais).");
+console.log("[worker] Titan Stay worker iniciado (HTTP de webhooks + BullMQ: pagamentos + canais + emissão fiscal).");

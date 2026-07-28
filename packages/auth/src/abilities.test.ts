@@ -37,6 +37,14 @@ describe("CASL abilities — regras absolutas da Fase 0", () => {
     expect(ability.can("update", "rate")).toBe(false);
   });
 
+  it("titan.finance decide sobre documento fiscal — reprocessar (update) e cancelar (approve)", () => {
+    // Fase 4, Passo 4c: reprocessar já usava "update" (concedido junto de "ledger" desde antes
+    // deste passo); "approve" é o único verbo novo, para o cancelamento (mais consequente — I7).
+    const ability = defineAbilityFor("titan.finance");
+    expect(ability.can("update", "fiscal_document")).toBe(true);
+    expect(ability.can("approve", "fiscal_document")).toBe(true);
+  });
+
   it("titan.auditor só lê, nunca escreve", () => {
     const ability = defineAbilityFor("titan.auditor");
     expect(ability.can("read", "all")).toBe(true);
