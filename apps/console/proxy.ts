@@ -26,5 +26,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|login).*)"],
+  // `api/auth` fica de fora: é o próprio endpoint de sign-in/sign-up/sessão do Better Auth
+  // (apps/console/app/api/auth/[...all]/route.ts) — exigir cookie de sessão para chegar até ele
+  // impediria qualquer login (ninguém tem cookie antes de logar).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|login|api/auth).*)"],
 };

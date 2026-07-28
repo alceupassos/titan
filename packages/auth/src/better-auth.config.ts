@@ -18,6 +18,12 @@ export function createAuth() {
       connectionString:
         process.env.DATABASE_URL ?? "postgresql://titan_app:titan_app_dev_only@localhost:6432/titan_dev",
     }),
+    // Necessário atrás de proxy reverso (nginx+Cloudflare, docs/adr/0002): sem `baseURL`
+    // explícito, Better Auth deriva a origem da requisição recebida, o que pode confundir
+    // cookie/redirect quando o TLS termina no Cloudflare, não no processo Node. `trustedOrigins`
+    // é o mesmo host — a verificação de Origin do Better Auth não aceita nada fora desta lista.
+    baseURL: process.env.BETTER_AUTH_URL,
+    trustedOrigins: process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : undefined,
     // Passwordless por padrão na área do hóspede (seção 7.1) — magic-link/OTP cobre isso; staff
     // e proprietário com acesso financeiro usam MFA obrigatório via twoFactor/passkey.
     emailAndPassword: {
