@@ -1,11 +1,12 @@
 # Estado do trabalho
 
-**Fase atual:** Fase 8 (Pricing) — **todos os 5 passos do plano aprovado concluídos**: comp set
-por atributos cadastrais, forecast por heurística de dia da semana, otimização em grade
-respeitando o piso de custo variável real, backtest com ΔRevPAR provado ≥ 0 e explicabilidade por
-noite, migration 0010 fechando a lacuna de custo de estoque da Fase 7, cockpit `/pricing` real
-verificado ao vivo com Playwright (ver seção "Fase 8 — Pricing" abaixo). Fases 0-7 seguem fechadas
-como já registrado (commit `c35c692`, push para `https://github.com/alceupassos/titan`).
+**Fase atual:** Fase 9 (Pessoas e Campo) — **todos os 5 passos do plano aprovado concluídos**:
+`workforce/` (cadastro, escala, custódia de acesso com cadeia hash-encadeada, desligamento com
+revogação automática provada por teste, produtividade com trava anti-gaming), migration 0011,
+scaffold real do app de campo (Expo) consumindo Route Handlers reais em `apps/console/app/api/
+field/**`, os 2 itens do portão de saída provados por teste (ver seção "Fase 9 — Pessoas e Campo"
+abaixo). Fases 0-8 seguem fechadas como já registrado (commit `24d41c6`, push para
+`https://github.com/alceupassos/titan`).
 
 **Gap conhecido 1:** VPS Contabo real ainda não provisionada. "Deploy sem downtime" e
 "restauração de backup cronometrada" têm scripts reais que rodam contra Docker Compose local —
@@ -891,4 +892,139 @@ Postgres/sessão real vivos nesta máquina — Gap conhecido 2), não mais um er
 build` real de `apps/console` sem regressão (33 rotas); `next dev` real + Playwright confirmando
 renderização e interação corretas da rota `/pricing`. Nenhuma migration já commitada foi alterada.
 
-**Próximo passo:** commit/push, depois plan mode para a Fase 9 (Pessoas e Campo).
+**Próximo passo (histórico):** commit/push, depois plan mode para a Fase 9 (Pessoas e Campo);
+ver seção seguinte para o resultado.
+
+## Fase 9 — Pessoas e Campo (workforce, app de campo, custódia de acesso)
+
+Plano aprovado em plan mode. **Pergunta 3 de `docs/decisoes-de-negocio.md`** (vínculo da equipe
+de campo: CLT/PJ/terceirizada) segue **pendente por decisão explícita do usuário** — perguntado
+novamente ao abrir esta fase, optou por manter o mesmo default já usado na Fase 6: os dois
+desenhos (`employee`/`contractor`) especificados em paralelo via o campo `employmentType`
+(incluindo `"unspecified"`), nenhum default real imposto. Verificado nesta sessão que os 2 itens
+do portão de saída são agnósticos ao vínculo: revogar credenciais no desligamento é a mesma
+operação estrutural para `employee`/`contractor`; o ciclo de tarefas do app de campo executa
+igual independente do vínculo de quem está logado.
+
+**Restrição real desta sessão**: `apps/field` era só um stub de `package.json` (Expo, T3/A3, sem
+código). Sem emulador Android/iOS nem dispositivo físico disponível, o scaffold foi feito **real**
+(`create-expo-app` de verdade, dependências reais instaladas via `pnpm install`, telas reais
+chamando `fetch` contra a API real), mas a prova do portão de saída "ciclo completo de estadia
+executado no app" foi feita via **teste de contrato em `packages/domain`** (mesmo padrão de
+"cenário sintético" já usado no backtest da Fase 8), nunca fingida como "visto rodando num
+dispositivo".
+
+**Faixas paralelas autorizadas pelo roadmap:** App de campo · escala · produtividade — 3 faixas.
+
+**Episódio real desta sessão**: as 3 faixas do Passo 4 foram disparadas em paralelo e todas
+falharam por limite de sessão da API antes de qualquer progresso real (só o app de campo tinha
+avançado até o scaffold do `create-expo-app`, sem as telas). Retomado sequencialmente — app de
+campo finalizado diretamente, depois escala/custódia de acesso e produtividade rodados um de cada
+vez (não mais em paralelo) — para não repetir o mesmo estouro de limite.
+
+**Escopo deliberadamente cortado nesta fase** (seção 9.11.7 do prompt único é extensa — cortar é
+obrigatório, mesmo padrão de todas as fases anteriores): sem ponto oficial/folha de pagamento
+(`docs/adr/0011-ponto-eletronico-nao-construir.md`); sem roteamento otimizado de tarefas (VRPTW);
+sem offline-first real (SQLite/fila de sincronização) — o app de campo faz `fetch` direto; sem
+integração real de fechadura inteligente — custódia de acesso é só registro; sem cálculo de
+remuneração variável real — produtividade é contagem determinística + trava anti-gaming (reusa
+`isLikelyReused` da Fase 6), nunca um valor a pagar; sem motor de alerta de vencimento de
+certificação/EPI. `apps/field` usa navegação por estado local (`useState`) em vez de Expo Router —
+decisão de escopo: configurar Expo Router sob uma versão de Expo muito recente (57) sem
+emulador/dispositivo para validar introduziria risco de configuração não verificável nesta sessão.
+
+**Passo 1 — `packages/domain/src/workforce/`:** `member.ts` (`EmploymentType` com 3 valores,
+incluindo `"unspecified"`), `assignment.ts` (`resolveAssignmentMode` — `employee`→mandatory,
+`contractor`/`unspecified`→voluntary, padrão conservador: nunca escala obrigatória sem vínculo
+confirmado), `access-custody.ts` (cadeia hash-encadeada de custódia de acesso, mesmo padrão de
+`evidence/chain.ts` mas deliberadamente não acoplada a ela — bounded contexts distintos),
+`offboarding.ts` (`dismissMember` — **a função que prova o portão de saída**: revoga TODAS as
+credenciais ativas do membro na mesma chamada), `productivity.ts` (`computeProductivityScore`
+determinístico, `flagSuspiciousCompletions` reusando `isLikelyReused`/`hammingDistance` da Fase 6
+para trava anti-gaming, nunca bloqueia o registro). 22 testes novos (226 no total do pacote domain
+antes do Passo 5).
+
+**Passo 2 — `packages/db`:** migration `0011_workforce.sql` — `workforce_members`
+(`employment_type`/`status` com `CHECK`), `access_credential_events` (append-only real — `GRANT
+SELECT, INSERT` + `REVOKE UPDATE, DELETE, TRUNCATE`, mesmo padrão de `evidence_log`),
+`shift_assignments`, `task_completion_records`. RLS+grants nas 4 tabelas; journal/snapshot via
+`drizzle-kit generate` real — 12 migrations (0000-0011) descobertas em ordem.
+
+**Passo 3 — `packages/contracts`:** `packages/contracts/src/workforce.ts` —
+`OnboardMemberSchema`, `AssignShiftSchema`, `RespondToShiftAssignmentSchema`,
+`IssueAccessCredentialSchema`, `TransferAccessCredentialSchema`, `DismissMemberSchema` (motivo
+obrigatório), `RecordTaskCompletionSchema`.
+
+**Passo 4 (3 faixas, executadas sequencialmente após a falha por limite de sessão):**
+- **4a — App de campo** (`apps/field/`): scaffold Expo real (`create-expo-app`, dependências
+  `expo-crypto`/`expo-image-picker` reais instaladas), 3 telas (`TasksListScreen`,
+  `ChecklistScreen` com captura de foto real via `expo-image-picker`/hash SHA-256 via
+  `expo-crypto`, `NewWorkOrderScreen`), cliente de API (`lib/api-client.ts`) apontando para
+  `EXPO_PUBLIC_API_BASE_URL`. Navegação por estado local, sem Expo Router (decisão de escopo
+  acima).
+- **4b — Escala e custódia de acesso** (`apps/console/app/(staff)/equipe/`): `onboardMemberAction`,
+  `assignShiftAction`/`respondToShiftAssignmentAction`, `issueAccessCredentialAction`/
+  `transferAccessCredentialAction` (lê a cadeia inteira dentro da MESMA transação via
+  `loadAccessCredentialEventsChain(db)`, nunca uma segunda conexão que quebraria atomicidade), e
+  **`dismissMemberAction`** — chama `dismissMember` do domínio e grava o UPDATE de status + todos
+  os eventos de revogação na mesma transação. `packages/auth/src/abilities.ts` ganhou subject
+  `"workforce_member"` (`titan.operations`: read/create/update; desligamento exige "approve" —
+  consequência de maior impacto).
+- **4c — Produtividade** (`apps/console/app/(staff)/equipe/produtividade/`):
+  `recordTaskCompletionAction`, painel com `computeProductivityScore`/`flagSuspiciousCompletions`,
+  texto explícito na UI de que a sinalização nunca bloqueia o registro. Subject novo
+  `"task_completion_record"` (recomendação já deixada em comentário pela faixa 4b, seguida à
+  risca em vez de sobrecarregar `"workforce_member"`).
+
+**Passo 5 — integração final:**
+- `apps/console/lib/auth/field-session.ts` (novo, mesmo padrão de `vendor-session.ts`/
+  `owner-session.ts`) — papel `"titan.field"`, mesma lacuna de mapeamento usuário→papel já
+  documentada desde a Fase 1.
+- 3 Route Handlers reais em `apps/console/app/api/field/`: `tasks/route.ts` (`GET`, junta
+  `cleaning_tasks`+`units`+`checklist_templates` reais desde a Fase 6), `tasks/complete/route.ts`
+  e `work-orders/route.ts` — ambos delegam para as MESMAS Server Actions já existentes
+  (`recordTaskCompletionAction`, `openWorkOrderAction`), nunca uma segunda implementação.
+  `packages/auth/src/abilities.ts`: `titan.field` ganhou `can("read", "cleaning_task")`.
+- **Bug real de build encontrado e corrigido nesta sessão**: importar `openWorkOrderAction` de
+  `apps/console/app/(staff)/limpeza/servicos/actions.ts` (arquivo `"use server"`) para dentro de
+  um Route Handler quebrava `next build` com "A 'use server' file can only export async
+  functions, found object" — o arquivo também exportava `OpenWorkOrderSchema`/
+  `TransitionWorkOrderSchema` (objetos Zod, exports de valor). Corrigido extraindo os 2 schemas
+  para um novo `servicos/schemas.ts` (sem a diretiva `"use server"`), deixando `actions.ts` exportar
+  só funções async (+ um tipo, que é erased em tempo de compilação). Nenhum outro consumidor
+  desses schemas existia fora do próprio arquivo.
+- `packages/domain/src/workforce/field-cycle-integration.test.ts` (novo) — **prova o segundo item
+  do portão de saída** ("ciclo completo de estadia executado no app"): encadeia, em memória,
+  check-in bloqueado fora de `ready` (I9) → checklist aprovado → consumo de estoque reconciliado
+  → OS aberta e executada até concluir (FSM real, nunca pula estado) → conclusão de tarefa
+  registrada sem sinalização de fraude — 6 testes. `offboarding.test.ts` (já escrito no Passo 1)
+  prova o primeiro item ("revogação de desligamento provada"): membro com 3 credenciais ativas de
+  tipos diferentes → todas revogadas na mesma chamada de `dismissMember`.
+- `pnpm turbo run typecheck`+`test` completos (26/26 tasks), `next build` real de `apps/console`
+  sem regressão (36 rotas, incluindo as 3 de API e as 2 abas de `/equipe`). `apps/field`:
+  verificado só por `tsc --noEmit` (sem build EAS/emulador — sem conta/dispositivo nesta sessão).
+
+**Dívida técnica nova, documentada e não escondida:**
+- Sem mapeamento persistido usuário→membro da equipe (`workforce_member.id`) — mesma classe de
+  lacuna já registrada para usuário→papel Titan/proprietário/prestador; `memberId` é sempre
+  parâmetro explícito, nunca inferido da sessão.
+- Sem ponto oficial/folha, sem VRPTW, sem offline-first real, sem integração de fechadura
+  inteligente, sem cálculo de remuneração variável real, sem motor de alerta de vencimento de
+  certificação — ver "Escopo deliberadamente cortado" acima.
+- `apps/field` usa navegação por estado local em vez de Expo Router — redução de escopo
+  documentada, revisitar se o app ganhar mais telas.
+- App de campo nunca foi executado num emulador/dispositivo real — verificado só por typecheck;
+  o ciclo de estadia é provado no nível de contrato de domínio (`field-cycle-integration.test.ts`),
+  não visualmente.
+- Nenhuma Server Action/Route Handler desta fase foi exercitada ponta a ponta contra um Postgres
+  vivo real (Gap conhecido 2, Docker sem daemon nesta máquina).
+- KPI "Desligamentos" na visão geral de `/equipe` é contagem total da amostra, não "no mês" —
+  `workforce_members` não tem coluna de timestamp de desligamento.
+
+**Verificação real feita nesta sessão:** `pnpm turbo run typecheck` limpo nos 17 pacotes do
+monorepo, `@titan/field` incluso; `pnpm turbo run test` com todos os testes passando (232 domain,
+mais os já existentes); `next build` real de `apps/console` sem regressão (36 rotas). Nenhuma
+migration já commitada foi alterada.
+
+**Próximo passo:** commit/push, depois plan mode para a Fase 10 (Agentes) — última fase do
+roadmap.

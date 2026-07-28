@@ -17,6 +17,15 @@ export const staffNavSections: SidebarSection[] = [
       { href: "/estoque", label: "Estoque" },
       { href: "/prestadores", label: "Prestadores" },
       { href: "/equipe", label: "Equipe" },
+      // Fase 9, Passo 4b (docs/fase-atual.md): escala e custódia de acesso — sub-rota da visão
+      // geral de Equipe acima, nunca a substitui. A PRÓXIMA FAIXA (produtividade, Passo 4c, que
+      // edita este arquivo em seguida) adiciona `{ href: "/equipe/produtividade", label:
+      // "Produtividade" }` logo ABAIXO desta linha — não a remova nem a reordene ao reconciliar.
+      { href: "/equipe/escala", label: "Escala" },
+      // Fase 9, Passo 4c: painel de produtividade (contagem de tarefas concluídas + sinalização de
+      // possível reuso de evidência entre tarefas do mesmo membro) — sub-rota da visão geral de
+      // Equipe acima, nunca a substitui.
+      { href: "/equipe/produtividade", label: "Produtividade" },
     ],
   },
   {

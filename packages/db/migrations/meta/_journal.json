@@ -78,6 +78,13 @@
       "when": 1785253871060,
       "tag": "0010_pricing_and_stock_cost",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785258405891,
+      "tag": "0011_workforce",
+      "breakpoints": true
     }
   ]
 }

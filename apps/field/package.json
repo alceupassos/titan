@@ -1,6 +1,26 @@
 {
   "name": "@titan/field",
   "version": "0.0.0",
-  "private": true,
-  "description": "App nativo da equipe própria (Expo, offline-first, tier T3/nível A3 de evidência). Escopo: Fase 9 (docs/roadmap.md). Stub de package.json apenas nesta rodada — scaffold Expo real entra na Fase 9."
+  "description": "App nativo da equipe própria (Expo, tier T3/nível A3 de evidência — docs/adr/0012-estrategia-mobile-tres-niveis.md). Fase 9 (Pessoas e Campo). Sem emulador/dispositivo nesta sessão — verificado só por typecheck, nunca visto rodando (ver docs/fase-atual.md).",
+  "main": "index.ts",
+  "dependencies": {
+    "expo": "~57.0.8",
+    "expo-status-bar": "~57.0.1",
+    "expo-crypto": "~15.0.7",
+    "expo-image-picker": "~17.0.8",
+    "react": "19.2.3",
+    "react-native": "0.86.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit"
+  },
+  "private": true
 }

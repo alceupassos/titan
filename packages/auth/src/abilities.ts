@@ -93,6 +93,26 @@ export type Subject =
   // publicação que caiu em price_out_of_band (mesma fila de /aprovacoes, tipo já existente desde
   // a Fase 2), nunca um verbo novo.
   | "pricing_snapshot"
+  // Fase 9, Passo 4b (docs/fase-atual.md): escala e custódia de acesso da equipe de campo
+  // (apps/console/app/(staff)/equipe, .../equipe/escala). Subject único cobrindo cadastro
+  // (onboard), escala (atribuir/responder) e custódia de acesso (emitir/transferir/revogar) do
+  // mesmo `WorkforceMember` — não fragmentado em subjects menores porque, ao contrário de
+  // "cleaning_task"/"work_order", nenhuma dessas sub-ações tem um dono de papel distinto do
+  // cadastro em si nesta fase. NOTA PARA A PRÓXIMA FAIXA (produtividade, Passo 4c, que edita este
+  // arquivo em seguida): se a tela de produtividade precisar de uma ability própria (ex. registrar
+  // conclusão de tarefa/`task_completion_record`), prefira um subject NOVO em vez de sobrecarregar
+  // "workforce_member" — mesmo raciocínio já usado para "cleaning_task" vs. "work_order" acima.
+  | "workforce_member"
+  // Fase 9, Passo 4c (docs/fase-atual.md): painel de produtividade
+  // (apps/console/app/(staff)/equipe/produtividade). Subject NOVO em vez de sobrecarregar
+  // "workforce_member" (seguindo a nota deixada pela faixa 4b acima) — registrar uma conclusão de
+  // tarefa (`recordTaskCompletionAction`) é um evento de EXECUÇÃO de campo (o quê foi feito, por
+  // quem, com qual evidência), distinto da decisão de CADASTRO/escala/custódia de acesso sobre o
+  // `WorkforceMember` em si. Só "read"/"create" — nunca "update"/"delete": mesmo espírito de
+  // "stock_movement"/"evidence_log", o histórico de conclusão é append-only por convenção (a
+  // sinalização de possível reuso de foto, `flagSuspiciousCompletions`, nunca apaga/edita um
+  // registro já gravado — só sinaliza para revisão humana).
+  | "task_completion_record"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -218,12 +238,32 @@ export function defineAbilityFor(role: Role): AppAbility {
       // preço final e decidir sobre variação fora da faixa continuam exclusivos de titan.revenue
       // ("approve" acima).
       can(["read", "create"], "pricing_snapshot");
+      // Fase 9, Passo 4b: cadastro de membro, atribuição de escala e emissão/transferência de
+      // credencial de acesso são trabalho operacional do turno — "create"/"update" cobrem isso.
+      // "approve" é dedicado ao DESLIGAMENTO (`dismissMemberAction`): é a consequência de maior
+      // impacto deste subject (revoga TODA credencial de acesso ativa do membro na mesma
+      // transação — ver packages/domain/src/workforce/offboarding.ts), mesmo padrão de "approve"
+      // sobre "payout_batch"/"fiscal_document" acima — uma única ability cobrindo a decisão mais
+      // consequente, nunca um "update" comum.
+      can(["read", "create", "update"], "workforce_member");
+      can("approve", "workforce_member");
+      // Fase 9, Passo 4c: registrar conclusão de tarefa é trabalho operacional do turno de campo
+      // — só "read"/"create", nunca "update"/"delete" (ver comentário de justificativa do subject
+      // "task_completion_record" acima).
+      can(["read", "create"], "task_completion_record");
       break;
     case "titan.support":
       can(["read", "update"], "reservation"); // até alçada — limite real vem de docs/decisoes-de-negocio.md #5
       break;
     case "titan.field":
       can("read", "reservation"); // mínimo — horário + código, nunca PII completa do hóspede
+      // Fase 9, Passo 5 (docs/fase-atual.md): app de campo (apps/field, api/field/**) — ler a
+      // lista de tarefas do dia (cleaning_task) é o mínimo necessário para o ciclo de estadia
+      // executado no app; abrir OS/registrar conclusão de tarefa já são cobertos por
+      // "work_order"/"task_completion_record" concedidos a titan.operations (as Server Actions
+      // reusadas pelos Route Handlers não distinguem entre chamada via cockpit ou via app — mesma
+      // lacuna de mapeamento usuário->papel já documentada em requireStaffSession()).
+      can("read", "cleaning_task");
       break;
     case "titan.auditor":
       can("read", "all"); // leitura total, escrita nenhuma

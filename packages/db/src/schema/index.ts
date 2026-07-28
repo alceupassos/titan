@@ -30,3 +30,7 @@ export * from "./stock-movement";
 export * from "./stock-balance";
 export * from "./pricing-snapshot";
 export * from "./pricing-autonomy-config";
+export * from "./workforce-member";
+export * from "./access-credential-event";
+export * from "./shift-assignment";
+export * from "./task-completion-record";

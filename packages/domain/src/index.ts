@@ -33,6 +33,7 @@ export * from "./housekeeping/claim-deadline";
 export * from "./vendor";
 export * from "./supply";
 export * from "./pricing";
+export * from "./workforce";
 
 // Nota de cobertura de invariantes neste pacote (zero I/O) — ver docs/invariantes.md:
 // I1, I2, I3 (via ausência de update/delete no chain + estados terminais, e agora também via
@@ -106,3 +107,16 @@ export * from "./pricing";
 // ΔRevPAR negativo (disciplina de `.claude/agents/pricing-scientist.md`). `variable-cost.ts`
 // fecha a lacuna identificada nesta sessão entre a Fase 7 (que só modela QUANTIDADE de estoque) e
 // o requisito do roadmap de "custo variável real" como piso — nunca uma constante.
+// workforce/ (Fase 9, Passo 1) modela o bounded context que housekeeping/checklist.ts (Fase 6)
+// documentou como deliberadamente ausente. A pergunta 3 de docs/decisoes-de-negocio.md (vínculo
+// CLT/PJ/terceirizada) segue pendente por decisão explícita do usuário — por isso `EmploymentType`
+// tem um terceiro valor `"unspecified"`, e `resolveAssignmentMode` nunca assume um vínculo que não
+// foi confirmado (default conservador: `"unspecified"` sempre resolve para `"voluntary"`, nunca
+// `"mandatory"`, mesmo princípio de `itemPaymentModel` em `administration/` e `taxRegime` em
+// `vendor/` — dado configurável, nunca constante global). `access-custody.ts` replica a técnica de
+// hash chain append-only de `evidence/chain.ts` (I10) para custódia de acesso, sem acoplar os dois
+// bounded contexts (`HashFn` redeclarada, não importada). `offboarding.ts::dismissMember` é a
+// única função que desliga um membro e SEMPRE revoga toda credencial ativa dele na mesma chamada —
+// prova o portão de saída "revogação de desligamento provada" da Fase 9. `productivity.ts` reusa
+// `isLikelyReused`/`hammingDistance` de `evidence/perceptual-hash.ts` (não recria) para sinalizar
+// — nunca bloquear — possível reuso de foto de evidência pelo mesmo membro entre tarefas.

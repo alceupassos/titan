@@ -7,18 +7,24 @@
 // apps/console/app/(staff)/fiscal/actions.ts e apps/console/app/(staff)/financeiro/actions.ts —
 // leia os dois antes de mexer aqui.
 //
-// SCHEMA ZOD LOCAL (mesma decisão de design de ../checklists/actions.ts): nenhum schema em
-// `packages/contracts` cobre abrir/transicionar uma OS técnica — fica local a este arquivo.
+// SCHEMA ZOD (mesma decisão de design de ../checklists/actions.ts): nenhum schema em
+// `packages/contracts` cobre abrir/transicionar uma OS técnica — vive em ./schemas.ts, NÃO neste
+// arquivo. Motivo real da separação (Fase 9, Passo 5): um arquivo `"use server"` só pode exportar
+// funções async — declarar `OpenWorkOrderSchema` (um objeto Zod, export de valor) aqui quebrava o
+// build assim que um Route Handler (apps/console/app/api/field/work-orders/route.ts) importava
+// `openWorkOrderAction` deste módulo ("A 'use server' file can only export async functions, found
+// object" — erro real de build encontrado nesta sessão). ./schemas.ts não tem a diretiva
+// `"use server"`, então pode exportar os schemas livremente.
 //
 // `canTransitionWorkOrder`/`transitionWorkOrder` (`packages/domain/src/work-order/state-machine.ts`,
 // FSM já existente desde a Fase 0) são o ÁRBITRO da transição — `transitionWorkOrderAction` NUNCA
 // aceita um `toStatus` que a FSM não permita a partir do estado atual, mesmo que o Zod valide o
 // valor como um `WorkOrderStatus` genérico isolado.
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 import { canTransitionWorkOrder, transitionWorkOrder, type WorkOrderStatus } from "@titan/domain";
 import { units, vendors, withTenant, workOrders } from "@titan/db";
 import { NoActiveTenantError, requireStaffSession, UnauthenticatedError } from "@/lib/auth/session";
+import { OpenWorkOrderSchema, TransitionWorkOrderSchema } from "./schemas";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -32,53 +38,6 @@ function toActionError(err: unknown, fallback: string): { ok: false; error: stri
   }
   return { ok: false, error: fallback };
 }
-
-// Os 10 valores de ServiceType (packages/domain/src/housekeeping/checklist.ts) — mesma
-// enumeração usada por ../checklists/actions.ts, reaproveitada aqui porque `work_orders` cobre o
-// mesmo vocabulário de tipo de serviço da seção 9.8.4 (dedetização, ar-condicionado, manutenção
-// corretiva etc.), não um vocabulário próprio.
-const ServiceTypeSchema = z.enum([
-  "limpeza_saida",
-  "limpeza_intermediaria",
-  "limpeza_profunda",
-  "dedetizacao",
-  "ar_condicionado",
-  "piscina",
-  "estofado",
-  "jardinagem",
-  "manutencao_corretiva",
-  "vistoria",
-]);
-
-// Espelha `WorkOrderStatus` de packages/domain/src/work-order/state-machine.ts — os 11 valores da
-// FSM (seção 9.10.2).
-const WorkOrderStatusSchema = z.enum([
-  "opened",
-  "triage",
-  "budget",
-  "dispatched",
-  "accepted_vendor",
-  "executing",
-  "accepted_titan",
-  "rework",
-  "billed",
-  "paid",
-  "rated",
-]);
-
-export const OpenWorkOrderSchema = z.object({
-  unitId: z.string().uuid(),
-  serviceType: ServiceTypeSchema,
-  description: z.string().min(1, "Descrição da OS é obrigatória."),
-  vendorId: z.string().uuid().optional(),
-});
-export type OpenWorkOrderInput = z.infer<typeof OpenWorkOrderSchema>;
-
-export const TransitionWorkOrderSchema = z.object({
-  workOrderId: z.string().uuid(),
-  toStatus: WorkOrderStatusSchema,
-});
-export type TransitionWorkOrderInput = z.infer<typeof TransitionWorkOrderSchema>;
 
 type OpenOutcome =
   | { kind: "business-error"; error: string }
