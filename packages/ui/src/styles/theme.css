@@ -1,6 +1,18 @@
 /* Tokens do cockpit Titan Stay — fonte de verdade: /DESIGN.md (frontmatter + ADR-0016). */
 @import "tailwindcss";
 
+/* Achado real (verificação ao vivo, página /unidades): a varredura automática de conteúdo do
+   Tailwind v4, num monorepo pnpm, só enxerga arquivos dentro do app que importa este CSS
+   (apps/console) — nunca os componentes de @titan/ui que DEFINEM as classes (StatusPill,
+   KpiCard, Sparkline, ComparisonBarChart). O resultado: uma classe só é gerada se o MESMO
+   literal também aparecer, por coincidência, em algum arquivo de apps/console — por isso
+   `bg-positive`/`bg-negative` funcionavam (usados também em apps/console) mas `bg-info` (nunca
+   usado fora de @titan/ui) e até `h-6` (nenhuma página de apps/console usava exatamente esse
+   literal) saíam como CSS vazio, sem aviso nenhum em build. `@source` aqui garante que TODO
+   componente de @titan/ui é escaneado de verdade, não só o que a coincidência de outra página
+   cobre. */
+@source "../components";
+
 @theme {
   /* ── Cockpit (escuro, tema padrão) ── */
   --color-bg: oklch(0.16 0.012 250);
