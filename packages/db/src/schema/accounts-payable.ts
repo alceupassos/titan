@@ -1,4 +1,4 @@
-import { date, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { date, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { tenants } from "./tenant";
 import { units } from "./unit";
 import { vendors } from "./vendor";
@@ -23,4 +23,11 @@ export const accountsPayable = pgTable("accounts_payable", {
   status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'paid'
   dueDate: date("due_date").notNull(),
   approvalRequestId: uuid("approval_request_id").references(() => approvalRequests.id),
+  // Fase 7 (Suprimentos e Prestadores) — snapshot de VendorRetentionAmounts no momento do
+  // pagamento (inssCents/irrfCents/csrfCents/issCents/netCents), nullable até o pagamento ser
+  // efetivado por payVendorInvoiceAction. Persistido como jsonb (não recalculado depois) porque é
+  // o registro do que foi de fato retido naquele pagamento — a vendor_retention_rule vigente pode
+  // mudar depois sem afetar pagamentos já feitos (mesmo espírito de checklist_template_version
+  // fixada no momento da criação da tarefa de limpeza).
+  retentionBreakdown: jsonb("retention_breakdown"),
 });

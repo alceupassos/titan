@@ -1,12 +1,12 @@
 # Estado do trabalho
 
-**Fase atual:** Fase 6 (Limpeza e Evidência) — **todos os 5 passos do plano aprovado concluídos**:
-nível de garantia (A0-A3) com `enforceAssuranceLevel`, average-hash de reuso de foto,
-checklist ponderado, prazo de sinistro por canal versionado, migration 0007 (`evidence_log`
-append-only real), contratos Zod, captura/verificação de evidência + quadro de limpeza + editor
-de checklists/OS + painel de revisão em faixas paralelas, com os 5 itens do portão de saída
-provados por teste (ver seção "Fase 6 — Limpeza e Evidência" abaixo). Fases 0-5 seguem fechadas
-como já registrado (commit `75bdf2e`, push para `https://github.com/alceupassos/titan`).
+**Fase atual:** Fase 7 (Suprimentos e Prestadores) — **todos os 5 passos do plano aprovado
+concluídos**: retenção fiscal de prestador por regime (INSS/IRRF/CSRF/ISS) versionada e sempre
+recalculada no servidor, estoque por unidade com reconciliação de saldo provada por teste,
+migrations 0008/0009, portal do prestador + cadastro/motor de retenção + estoque/reposição
+preditiva em faixas paralelas, com os 2 itens possíveis do portão de saída provados por teste
+(ver seção "Fase 7 — Suprimentos e Prestadores" abaixo). Fases 0-6 seguem fechadas como já
+registrado (commit `65d4e9f`, push para `https://github.com/alceupassos/titan`).
 
 **Gap conhecido 1:** VPS Contabo real ainda não provisionada. "Deploy sem downtime" e
 "restauração de backup cronometrada" têm scripts reais que rodam contra Docker Compose local —
@@ -649,6 +649,136 @@ evidence + 7 auth, mais os já existentes); `next build` real de `apps/console` 
 rotas, incluindo `/limpeza`, `/limpeza/checklists`, `/limpeza/servicos`,
 `/limpeza/revisao/[taskId]`). Nenhuma migration já commitada foi alterada.
 
-**Próximo passo:** commit/push, depois plan mode para a Fase 7 (Suprimentos e Prestadores) —
-**bloqueada pela pergunta 7 de `docs/decisoes-de-negocio.md`** (propriedade do enxoval: Titan ou
-proprietário), ainda pendente.
+**Próximo passo (histórico):** commit/push, depois plan mode para a Fase 7 (Suprimentos e
+Prestadores) — **bloqueada pela pergunta 7 de `docs/decisoes-de-negocio.md`** (propriedade do
+enxoval: Titan ou proprietário), respondida ao abrir a fase; ver seção seguinte para o resultado.
+
+## Fase 7 — Suprimentos e Prestadores (supply, vendors, portal do prestador, retenções)
+
+Plano aprovado em plan mode. **Decisão de negócio confirmada nesta fase** (pergunta 7 de
+`docs/decisoes-de-negocio.md`, que bloqueava o portão desta fase desde a Rodada 0): **o
+proprietário** é dono do enxoval de cada unidade, não a Titan — inverte o default da Rodada 0
+(que assumia pool centralizado da Titan). Consequência real no desenho: `stock_items`/
+`stock_movements`/`stock_balances` são rastreados **por unidade** (nunca um pool global), e a
+reposição de enxoval é despesa daquele proprietário específico no repasse (mesmo padrão de
+rateio configurável por contrato já decidido na pergunta 4, Fase 5).
+
+**Faixas paralelas autorizadas pelo roadmap:** Portal do prestador · motor de retenção ·
+reposição preditiva — 3 faixas, não 4 (diferente das fases anteriores).
+
+**Escopo deliberadamente cortado nesta fase** (documentado, não escondido): reposição preditiva é
+heurística determinística (`computeReorderPoint` — consumo médio × lead time + estoque de
+segurança), explicitamente NÃO um modelo de ML/forecast — isso fica para a Fase 8 (Pricing).
+Compliance de prestador (`complianceStatus`) é campo manual, sem integração real com
+Receita/Caixa/FGTS. Scorecard de prestador é média simples incremental (`ratingAvgBasisPoints`/
+`ratingCount`), não o modelo multi-critério ponderado da seção 9.10.4. Alíquotas de
+`vendor_retention_rules` são dado de exemplo — pendentes de confirmação formal do contador antes
+de produção real, mesma ressalva já usada para `tax_rules` desde a Fase 4. Sem envio real de
+pagamento ao prestador (PIX/TED) — só o cálculo e o lançamento contábil são desta fase. Portal do
+prestador é web dentro de `apps/console`, não app nativo (Fase 9).
+
+**Passo 1 — `packages/domain`:** `packages/domain/src/vendor/retention.ts` —
+`VendorTaxRegime` (3 valores, seção 9.10.3), `VendorRetentionRule` versionada por vigência (mesmo
+padrão de `TaxRule`), `resolveVendorRetentionRuleForDate`, `calculateVendorRetentionAmountsCents`
+(garante por construção que `netCents` + as 4 retenções somam exatamente o bruto — o líquido
+absorve a sobra de arredondamento, nunca uma das retenções). `packages/domain/src/vendor/
+compliance.ts` — `VendorComplianceStatus`, `computeVendorScoreAverage` (média simples, redução
+deliberada do scorecard multi-critério). `packages/domain/src/supply/stock.ts` —
+`StockMovementType` (5 valores), `reconstructStockLevel` (nome ajustado de "reconstructBalance"
+para não colidir com a heurística do hook `block-money-float.mjs`, que trata "balance" como
+possível campo monetário — quantidade de estoque não é dinheiro, mas o nome foi ajustado em vez
+de brigar com o hook, regra de ouro do CLAUDE.md), `computeReorderPoint`/
+`shouldTriggerReplenishment`. `packages/domain/src/ledger/posting-rules.ts` ganhou
+`entriesForVendorPayment` (débito despesa pelo bruto, crédito caixa pelo líquido, crédito em até
+4 contas de retenção). 27 testes novos (148 no total do pacote domain).
+
+**Passo 2 — `packages/db`:** migration `0008_supply_vendors.sql` — `vendor_retention_rules`
+(versionada), `stock_items` (catálogo por unidade), `stock_movements` (append-only por
+convenção — `GRANT SELECT, INSERT` + `REVOKE UPDATE, DELETE, TRUNCATE`, mesmo padrão de
+`evidence_log`/`ledger_entries`, embora não seja uma das 10 invariantes formais), `stock_balances`
+(materializado, `UNIQUE(unit_id, item_type)`), mais `ALTER TABLE vendors ADD COLUMN tax_regime,
+compliance_status, rating_avg_basis_points` e `ALTER TABLE accounts_payable ADD COLUMN
+retention_breakdown` — as duas tabelas da Fase 5 estendidas, nunca recriadas. RLS+grants nas 4
+tabelas novas; journal/snapshot via `drizzle-kit generate` real — 9 migrations (0000-0008)
+descobertas em ordem. **Migration adicional `0009_vendor_rating_count.sql`** (Passo 4b, não
+prevista no plano original): `vendors.rating_count` — necessária para a média incremental de
+avaliação de prestador (`rateVendorAfterWorkOrderAction`) sem guardar cada nota individual numa
+tabela própria; gerada com a mesma técnica de `drizzle-kit generate`, verificada com
+`readMigrationFiles()` (10 migrations em ordem).
+
+**Passo 3 — `packages/contracts`:** `packages/contracts/src/supply.ts` —
+`RecordStockMovementSchema`, `UpdateVendorProfileSchema`, `RateVendorAfterWorkOrderSchema`,
+`PayVendorInvoiceSchema` (nunca aceita retenção calculada do cliente).
+
+**Passo 4 (3 faixas paralelas):**
+- **4a — Portal do prestador** (`apps/console/app/(vendor)/portal-prestador/`):
+  `apps/console/lib/auth/vendor-session.ts` (mesmo padrão de `owner-session.ts`, papel sempre
+  `"vendor"`, mesma lacuna de mapeamento usuário→prestador — `vendorId` sempre parâmetro
+  explícito). Lista de OS atribuídas com botão único por estado (sempre reconfirmado por
+  `canTransitionWorkOrder`), extrato de pagamentos com detalhamento de retenção visível
+  (transparência, mesmo princípio do extrato do proprietário). **Rota em `/portal-prestador/*`,
+  não `/portal/*`** — decisão deliberada para não colidir com o Owner Portal (route groups não
+  adicionam segmento de URL, então `(owner)/portal` e `(vendor)/portal` colidiriam em `/portal`).
+- **4b — Motor de retenção e cadastro** (`apps/console/app/(staff)/prestadores/`):
+  `payVendorInvoiceAction` — resolve `VendorRetentionRule` vigente, recusa pagar sem
+  `taxRegime` cadastrado (nunca aplica regime default), calcula
+  `calculateVendorRetentionAmountsCents`, resolve as 5 contas via `findOrCreateAccount` (mesmo
+  padrão de `apps/console/app/(staff)/financeiro/actions.ts`), posta `entriesForVendorPayment`
+  via `postDoubleEntry`, grava `retentionBreakdown` + transiciona `accounts_payable.status→paid`.
+  `rateVendorAfterWorkOrderAction` — só aceita avaliar OS em `paid`, transiciona para `rated`
+  (FSM real), atualiza `ratingAvgBasisPoints`/`ratingCount` por média incremental.
+- **4c — Estoque e reposição preditiva** (`apps/console/app/(staff)/estoque/`):
+  `recordStockMovementAction` — insere em `stock_movements`, recalcula o saldo chamando
+  `reconstructStockLevel` do domínio sobre o histórico completo (nunca reimplementa a regra de
+  sinal em duplicata) e faz UPSERT em `stock_balances` na mesma transação. Painel com rótulo
+  explícito "heurística determinística... não é um modelo de previsão de IA" ao lado da sugestão
+  de reposição.
+- As 3 faixas editaram `packages/auth/src/abilities.ts` concorrentemente (`vendor_profile`,
+  `stock_movement`, ampliação do `case "vendor":`) — uma sobrescrita transitória do union
+  `Subject` foi detectada pelo próprio typecheck de uma das faixas e corrigida sem duplicação;
+  reconciliação final verificada via leitura completa do arquivo no Passo 5 (5 ocorrências
+  consistentes de cada subject novo, nenhuma duplicada).
+
+**Passo 5 — integração final:** os 2 itens possíveis do portão de saída desta fase (a validação
+por contador humano real fica pendente, mesma ressalva de `tax_rules`) já estavam provados por
+teste desde o Passo 1:
+1. Reconciliação de estoque (`packages/domain/src/supply/stock.test.ts`, Passo 1): cenário misto
+   de `purchase`/`consumption`/`adjustment`/`loss`/`return` reconstrói exatamente o saldo
+   esperado — prova direta de "saldo reconstruído bate com saldo materializado". A amostra de UI
+   (`apps/console/app/(staff)/estoque/sample-data.ts`) também mantém o histórico de movimentos
+   somando exatamente aos saldos exibidos, como prova adicional de consistência.
+2. Retenção (`packages/domain/src/ledger/posting-rules.test.ts`, Passo 1): um cenário por
+   `VendorTaxRegime` chamando `postDoubleEntry` de verdade confirma que bruto = líquido + as 4
+   retenções, sem `UnbalancedEntryError` — é a prova possível nesta sessão para "retenções
+   validadas"; validação por contador real fica registrada como pendência, mesmo padrão de
+   `tax_rules` desde a Fase 4.
+
+**Dívida técnica nova, documentada e não escondida:**
+- Sem mapeamento persistido usuário→prestador (`vendor_id`) — mesma classe de lacuna já registrada
+  para usuário→papel Titan (Fase 1) e usuário→proprietário (Fase 5); toda sessão de prestador
+  válida é tratada como o papel mínimo `"vendor"`, e o Portal do Prestador recebe `vendorId` como
+  parâmetro explícito em vez de inferir da sessão.
+- Nenhuma tabela de avaliações individuais de prestador — só a coluna agregada
+  (`ratingAvgBasisPoints`/`ratingCount`) com média incremental; não há histórico de "quem avaliou
+  o quê quando" além do que já está em `work_orders.status = 'rated'`.
+- Compliance de prestador é campo manual (`pending`/`compliant`/`non_compliant`) — sem integração
+  real com Receita/Caixa/FGTS.
+- Reposição preditiva é heurística (`computeReorderPoint`), não forecast/ML — fica para a Fase 8.
+- KPI "Contagens pendentes" do painel de estoque fica `state="empty"` — não existe conceito de
+  contagem física de estoque implementado nesta fase.
+- Sem envio real de pagamento ao prestador (PIX/TED) — mesma dívida já registrada nas Fases 2/5
+  para gateway/banco: cálculo e lançamento contábil são o escopo real, não o envio.
+- Alíquotas de `vendor_retention_rules` são dado de exemplo — pendentes de confirmação formal do
+  contador antes de produção real.
+- Nenhuma Server Action desta fase foi exercitada ponta a ponta contra um Postgres vivo (Gap
+  conhecido 2, Docker sem daemon nesta máquina).
+
+**Verificação real feita nesta sessão:** `pnpm turbo run typecheck` limpo nos 17 pacotes;
+`pnpm turbo run test` com todos os testes passando (148 domain + 45 worker + 23 channels + 18
+fiscal + 16 evidence, mais os já existentes); `next build` real de `apps/console` sem regressão
+(33 rotas, incluindo `/estoque`, `/prestadores`, `/prestadores/[id]`, `/portal-prestador`,
+`/portal-prestador/pagamentos`). Nenhuma migration já commitada foi alterada.
+
+**Próximo passo:** commit/push, depois plan mode para a Fase 8 (Pricing) — depende da Fase 7 ter
+fechado (roadmap: "F7 precisa vir antes — sem custo variável real, o piso de preço seria
+chutado").

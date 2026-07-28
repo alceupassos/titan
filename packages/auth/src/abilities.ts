@@ -63,6 +63,27 @@ export type Subject =
   // (packages/db's cleaning_tasks), distinta da OS técnica (work_order, seção 9.10.2) e da
   // reserva em si — mesmo raciocínio já usado para "channel_sync" acima.
   | "cleaning_task"
+  // Fase 7, Passo 4b (docs/fase-atual.md): cadastro de prestador (apps/console/app/(staff)/
+  // prestadores) — atualizar regime de tributação + status de compliance
+  // (`updateVendorProfileAction`) é decisão financeira/cadastral sobre o FORNECEDOR em si, não
+  // sobre uma `accounts_payable` individual (subject já existente acima) — mesmo raciocínio de
+  // "channel_sync"/"cleaning_task": a entidade que muda de estado (o prestador) é distinta da
+  // transação que ela participa (a conta a pagar). Disparar o pagamento com retenção
+  // (`payVendorInvoiceAction`) continua coberto por "approve"/"accounts_payable", já concedido a
+  // `titan.finance` desde a Fase 5 — não duplicado aqui.
+  | "vendor_profile"
+  // Fase 7, Passo 4c (docs/fase-atual.md): estoque e reposição preditiva
+  // (apps/console/app/(staff)/estoque) — registrar um movimento de estoque
+  // (`recordStockMovementAction`) é decisão operacional do turno (quem faz a virada também
+  // registra consumo/perda/compra de enxoval), não financeira em si — mesmo raciocínio já usado
+  // para "cleaning_task"/"work_order" acima. Subject dedicado em vez de reusar "cleaning_task":
+  // a decisão aqui é sobre o SALDO DE ESTOQUE por unidade/item (packages/db's stock_movements/
+  // stock_balances), distinto da tarefa de virada em si. Só "read"/"create" — nunca "update"/
+  // "delete": mesmo espírito de `ledger_entries`/`evidence_log`, o histórico de movimento é
+  // append-only por convenção desta fase (ver comentário de stock_movements em
+  // packages/db/src/schema/stock-movement.ts); corrigir um lançamento errado é um NOVO movimento
+  // de ajuste/perda, nunca uma edição do anterior.
+  | "stock_movement"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -115,6 +136,14 @@ export function defineAbilityFor(role: Role): AppAbility {
       // "approve"/"fiscal_document" acima: uma única ability cobrindo a decisão consequente, sem
       // inventar um verbo novo ("pay") que não acrescentaria garantia extra.
       can(["read", "create", "approve"], "accounts_payable");
+      // Fase 7, Passo 4b (docs/fase-atual.md): cadastro de prestador
+      // (apps/console/app/(staff)/prestadores) — atualizar regime de tributação + status de
+      // compliance é decisão do financeiro (é quem depende do regime correto para calcular
+      // retenção antes de pagar, `payVendorInvoiceAction`), não de operações — mesmo raciocínio
+      // de "titan.finance" já ser dono de "accounts_payable"/"fiscal_document" acima. "approve"
+      // sobre "accounts_payable" (linha acima, já existente desde a Fase 5) já cobre disparar o
+      // pagamento com retenção — não duplicado aqui.
+      can(["read", "create", "update"], "vendor_profile");
       cannot("update", "rate"); // finance não altera tarifa — seção 7.1
       break;
     case "titan.revenue":
@@ -165,6 +194,10 @@ export function defineAbilityFor(role: Role): AppAbility {
       // segunda `can(..., "cleaning_task")` funcionaria também, mas duplicaria a declaração sem
       // motivo).
       can(["read", "create", "update", "approve"], "cleaning_task");
+      // Fase 7, Passo 4c: registrar movimento de estoque (compra/consumo/ajuste/perda/devolução)
+      // a partir do painel de /estoque — só "read"/"create", nunca "update"/"delete" (ver
+      // comentário de justificativa do subject "stock_movement" acima).
+      can(["read", "create"], "stock_movement");
       break;
     case "titan.support":
       can(["read", "update"], "reservation"); // até alçada — limite real vem de docs/decisoes-de-negocio.md #5
@@ -185,6 +218,16 @@ export function defineAbilityFor(role: Role): AppAbility {
       break;
     case "vendor":
       can("read", "reservation"); // escopo mínimo — sem PII do hóspede
+      // Fase 7, Passo 4a (docs/fase-atual.md): Portal do prestador
+      // (apps/console/app/(vendor)/portal-prestador) — aceitar, iniciar execução e concluir uma
+      // OS técnica atribuída a si. "update" cobre a transição de status em si; a FSM
+      // (`canTransitionWorkOrder`) decide se aquela transição é válida a partir do estado atual, e
+      // a Server Action (`vendorTransitionWorkOrderAction`) confere ADEMAIS que a OS pertence a
+      // este prestador (`row.vendorId === vendorId informado` — ver
+      // apps/console/lib/auth/vendor-session.ts, lacuna de mapeamento usuário -> prestador) antes
+      // de qualquer UPDATE. CASL só decide "este papel pode mexer em OS", nunca "qual OS" nem
+      // "para qual estado" — mesmo espírito já usado para `titan.operations`/"work_order" acima.
+      can(["read", "update"], "work_order");
       break;
     case "guest":
       can(["read", "update"], "reservation"); // só a própria — filtrado por reservation_id

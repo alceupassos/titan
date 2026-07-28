@@ -1,0 +1,12 @@
+-- Migration 0009 — vendors.rating_count (Fase 7, Passo 4b). APLICADA NUNCA É ALTERADA.
+--
+-- Suporta o recálculo INCREMENTAL da média de avaliação do prestador
+-- (`rateVendorAfterWorkOrderAction`, apps/console/app/(staff)/prestadores/actions.ts) sem criar
+-- uma tabela de "avaliações individuais" nesta fase: `vendors.rating_avg_basis_points` já guarda
+-- a média corrente (Fase 7, migration 0008); esta coluna guarda QUANTAS notas já foram
+-- incorporadas a ela, para a próxima nota poder recompor
+-- `(avg_atual * count + nova_nota*100) / (count + 1)` sem reler histórico nenhum — resultado
+-- matematicamente equivalente a `computeVendorScoreAverage` sobre o histórico completo de notas
+-- (packages/domain/src/vendor/compliance.ts), documentado em detalhe no comentário da Server
+-- Action que usa esta coluna.
+ALTER TABLE "vendors" ADD COLUMN "rating_count" integer DEFAULT 0 NOT NULL;

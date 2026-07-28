@@ -157,3 +157,70 @@ modelo usado, faixa e resultado — é o registro de rastreabilidade e custo do 
 | 2026-07-28T12:43:53.062Z |  | desconhecido | concluído |
 | 2026-07-28T12:44:18.593Z | general-purpose | desconhecido | concluído |
 | 2026-07-28T13:16:13.776Z |  | desconhecido | concluído |
+| 2026-07-28T13:28:25.947Z |  | desconhecido | concluído |
+| 2026-07-28T13:28:57.635Z |  | desconhecido | concluído |
+| 2026-07-28T13:29:37.032Z | Explore | desconhecido | concluído |
+| 2026-07-28T13:35:59.897Z |  | desconhecido | concluído |
+| 2026-07-28T13:38:02.274Z |  | desconhecido | concluído |
+| 2026-07-28T13:38:35.406Z |  | desconhecido | concluído |
+| 2026-07-28T13:39:07.507Z |  | desconhecido | concluído |
+| 2026-07-28T13:39:40.286Z |  | desconhecido | concluído |
+| 2026-07-28T13:40:14.559Z |  | desconhecido | concluído |
+| 2026-07-28T13:40:47.099Z |  | desconhecido | concluído |
+| 2026-07-28T13:41:19.975Z |  | desconhecido | concluído |
+| 2026-07-28T13:41:52.492Z |  | desconhecido | concluído |
+| 2026-07-28T13:42:24.952Z |  | desconhecido | concluído |
+| 2026-07-28T13:42:41.934Z | general-purpose | desconhecido | concluído |
+| 2026-07-28T14:09:47.060Z |  | desconhecido | concluído |
+| 2026-07-28T14:10:19.181Z |  | desconhecido | concluído |
+| 2026-07-28T14:10:44.616Z |  | desconhecido | concluído |
+| 2026-07-28T14:10:52.583Z |  | desconhecido | concluído |
+| 2026-07-28T14:11:14.719Z |  | desconhecido | concluído |
+| 2026-07-28T14:11:16.348Z |  | desconhecido | concluído |
+| 2026-07-28T14:11:46.516Z |  | desconhecido | concluído |
+| 2026-07-28T14:11:48.150Z |  | desconhecido | concluído |
+| 2026-07-28T14:11:55.042Z |  | desconhecido | concluído |
+| 2026-07-28T14:12:18.614Z |  | desconhecido | concluído |
+| 2026-07-28T14:12:20.781Z |  | desconhecido | concluído |
+| 2026-07-28T14:12:27.219Z |  | desconhecido | concluído |
+| 2026-07-28T14:12:52.362Z |  | desconhecido | concluído |
+| 2026-07-28T14:12:52.806Z |  | desconhecido | concluído |
+| 2026-07-28T14:12:59.390Z |  | desconhecido | concluído |
+| 2026-07-28T14:13:25.446Z |  | desconhecido | concluído |
+| 2026-07-28T14:13:25.697Z |  | desconhecido | concluído |
+| 2026-07-28T14:13:31.447Z |  | desconhecido | concluído |
+| 2026-07-28T14:13:57.538Z |  | desconhecido | concluído |
+| 2026-07-28T14:13:58.132Z |  | desconhecido | concluído |
+| 2026-07-28T14:14:04.668Z |  | desconhecido | concluído |
+| 2026-07-28T14:14:29.639Z |  | desconhecido | concluído |
+| 2026-07-28T14:14:30.551Z |  | desconhecido | concluído |
+| 2026-07-28T14:14:36.509Z |  | desconhecido | concluído |
+| 2026-07-28T14:15:01.809Z |  | desconhecido | concluído |
+| 2026-07-28T14:15:03.181Z |  | desconhecido | concluído |
+| 2026-07-28T14:15:09.403Z |  | desconhecido | concluído |
+| 2026-07-28T14:15:35.664Z |  | desconhecido | concluído |
+| 2026-07-28T14:15:41.511Z |  | desconhecido | concluído |
+| 2026-07-28T14:16:04.661Z |  | desconhecido | concluído |
+| 2026-07-28T14:16:08.202Z |  | desconhecido | concluído |
+| 2026-07-28T14:16:13.660Z |  | desconhecido | concluído |
+| 2026-07-28T14:16:37.343Z |  | desconhecido | concluído |
+| 2026-07-28T14:16:40.862Z |  | desconhecido | concluído |
+| 2026-07-28T14:16:49.391Z | general-purpose | desconhecido | concluído |
+| 2026-07-28T14:17:08.004Z |  | desconhecido | concluído |
+| 2026-07-28T14:17:09.831Z |  | desconhecido | concluído |
+| 2026-07-28T14:17:12.675Z |  | desconhecido | concluído |
+| 2026-07-28T14:17:41.923Z |  | desconhecido | concluído |
+| 2026-07-28T14:17:44.903Z |  | desconhecido | concluído |
+| 2026-07-28T14:18:03.856Z | general-purpose | desconhecido | concluído |
+| 2026-07-28T14:18:16.503Z |  | desconhecido | concluído |
+| 2026-07-28T14:18:50.446Z |  | desconhecido | concluído |
+| 2026-07-28T14:19:24.344Z |  | desconhecido | concluído |
+| 2026-07-28T14:19:59.664Z |  | desconhecido | concluído |
+| 2026-07-28T14:20:33.761Z |  | desconhecido | concluído |
+| 2026-07-28T14:21:07.495Z |  | desconhecido | concluído |
+| 2026-07-28T14:21:41.651Z |  | desconhecido | concluído |
+| 2026-07-28T14:22:45.403Z |  | desconhecido | concluído |
+| 2026-07-28T14:23:21.778Z |  | desconhecido | concluído |
+| 2026-07-28T14:24:27.549Z |  | desconhecido | concluído |
+| 2026-07-28T14:25:05.304Z |  | desconhecido | concluído |
+| 2026-07-28T14:25:36.647Z | general-purpose | desconhecido | concluído |

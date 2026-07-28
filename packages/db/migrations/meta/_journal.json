@@ -57,6 +57,20 @@
       "when": 1785243280875,
       "tag": "0007_housekeeping_evidence",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785247466391,
+      "tag": "0008_supply_vendors",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785247927808,
+      "tag": "0009_vendor_rating_count",
+      "breakpoints": true
     }
   ]
 }

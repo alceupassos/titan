@@ -24,3 +24,7 @@ export * from "./cleaning-task";
 export * from "./work-order";
 export * from "./channel-claim-rule";
 export * from "./claim-dossier";
+export * from "./vendor-retention-rule";
+export * from "./stock-item";
+export * from "./stock-movement";
+export * from "./stock-balance";

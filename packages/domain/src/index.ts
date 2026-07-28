@@ -30,6 +30,8 @@ export * from "./administration/administration-contract";
 export * from "./administration/payout-extract";
 export * from "./housekeeping/checklist";
 export * from "./housekeeping/claim-deadline";
+export * from "./vendor";
+export * from "./supply";
 
 // Nota de cobertura de invariantes neste pacote (zero I/O) — ver docs/invariantes.md:
 // I1, I2, I3 (via ausência de update/delete no chain + estados terminais, e agora também via
@@ -81,3 +83,17 @@ export * from "./housekeeping/claim-deadline";
 // pergunta 3 de docs/decisoes-de-negocio.md (vínculo da camareira) segue pendente — nenhum
 // bounded context `workforce`/controle de jornada é modelado aqui; o checklist é só especificação
 // de escopo do serviço (seção 9.10.6).
+// vendor/ e supply/ (Fase 7, Passo 1) reforçam mais uma vez "tabela versionada, nunca código":
+// `VendorRetentionRule` (INSS/IRRF/CSRF/ISS por regime de tributação do prestador — seção 9.10.3)
+// segue o MESMO padrão de `TaxRule`/`AdministrationContract`/`ChannelClaimRule`, com o líquido
+// sempre calculado como a DIFERENÇA entre o bruto e as 4 retenções já arredondadas (nunca um
+// "netBasisPoints" próprio) — garante por construção que a soma nunca sobra/falta 1 centavo por
+// arredondamento composto. `entriesForVendorPayment` (ledger/posting-rules.ts) usa essa
+// invariante para debitar o bruto na despesa de prestador e creditar o líquido + cada retenção
+// não-nula, sem nunca gerar linha de R$ 0,00 no ledger. `supply/stock.ts` reconstrói o nível de
+// estoque de enxoval/material por unidade (nunca um saldo mutável direto) a partir do histórico
+// append-only de movimentos — reforça docs/decisoes-de-negocio.md, pergunta 7 (confirmada: o
+// enxoval é do proprietário, não da Titan, logo o saldo é sempre por unidade/proprietário, nunca
+// um pool centralizado da operadora) — e expõe `computeReorderPoint`/`shouldTriggerReplenishment`
+// como heurística determinística explícita, não um modelo de forecast (isso fica para a Fase
+// 8/Pricing).

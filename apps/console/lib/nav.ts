@@ -60,5 +60,22 @@ export const ownerNavSections: SidebarSection[] = [
   },
 ];
 
-/** Todas as seções — usado pelo Command Palette, que busca em cockpit e portal ao mesmo tempo. */
-export const allNavSections: SidebarSection[] = [...staffNavSections, ...ownerNavSections];
+// Fase 7, Passo 4a (docs/fase-atual.md): Portal do prestador (apps/console/app/(vendor)/**).
+// Decisão de nomenclatura (route group `(vendor)`, não `/portal/*`): o Owner Portal já ocupa
+// `/portal/*` desde a Fase 5 acima. Route groups do Next.js (`(owner)/`, `(vendor)/`) NÃO
+// adicionam segmento à URL — só agrupam rotas/layouts sem aparecer no caminho. Se o portal do
+// prestador também vivesse em `(vendor)/portal/*`, colidiria literalmente com `(owner)/portal/*`
+// na mesma URL "/portal". Por isso as rotas do prestador vivem em `/portal-prestador/*` — ver
+// apps/console/app/(vendor)/portal-prestador/**.
+export const vendorNavSections: SidebarSection[] = [
+  {
+    title: "Portal do prestador",
+    items: [
+      { href: "/portal-prestador", label: "Minhas OS" },
+      { href: "/portal-prestador/pagamentos", label: "Pagamentos" },
+    ],
+  },
+];
+
+/** Todas as seções — usado pelo Command Palette, que busca em cockpit e portais ao mesmo tempo. */
+export const allNavSections: SidebarSection[] = [...staffNavSections, ...ownerNavSections, ...vendorNavSections];

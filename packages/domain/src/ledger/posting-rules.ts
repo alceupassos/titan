@@ -3,6 +3,7 @@
 // funções resolve id de conta nem persiste nada — isso é responsabilidade da borda (packages/db /
 // packages/payments) no Passo 2+ desta fase.
 import type { CurrencyCode } from "@titan/money";
+import type { VendorRetentionAmounts } from "../vendor/retention";
 import type { Cents, LedgerEntry } from "./ledger-entry";
 import type { LedgerLine } from "./post-double-entry";
 
@@ -209,4 +210,76 @@ export function entriesForPayoutSettlement(params: EntriesForPayoutSettlementPar
       ...(params.reservationId !== undefined ? { reservationId: params.reservationId } : {}),
     },
   ];
+}
+
+export interface EntriesForVendorPaymentParams {
+  /** Opcional — nem todo pagamento de prestador vem de uma OS (ex.: contrato de serviço
+   * recorrente sem `work_order` individual). Não é propagado para `LedgerLine` porque esse tipo
+   * (mesmo que `LedgerEntry`) só modela vínculo com `reservationId`/`reversalOfId` hoje — não
+   * existe campo de work order na tabela de lançamentos. Aceito aqui só para o chamador poder
+   * registrar a origem/rastreabilidade fora do ledger (ex.: log de auditoria, `work_orders`),
+   * mesmo padrão de "extensão de shape só quando o tipo já suporta" já seguido em
+   * `entriesForPayoutSettlement`/`entriesForRefund`. */
+  readonly workOrderId?: string;
+  readonly vendorExpenseAccountId: string;
+  readonly cashAccountId: string;
+  readonly inssRetentionAccountId: string;
+  readonly irrfRetentionAccountId: string;
+  readonly csrfRetentionAccountId: string;
+  readonly issRetentionAccountId: string;
+  readonly grossAmountCents: Cents;
+  /** De `../vendor/retention.ts` — já garante, por construção de
+   * `calculateVendorRetentionAmountsCents`, que `netCents` + as 4 retenções somam
+   * `grossAmountCents` exatamente. */
+  readonly retention: VendorRetentionAmounts;
+  readonly currency: CurrencyCode;
+}
+
+/**
+ * Pagamento a prestador com retenções (seção 9.10.3): débito na despesa de prestador pelo BRUTO,
+ * crédito em caixa pelo LÍQUIDO, crédito em cada conta de retenção pelo valor retido
+ * correspondente. Cada linha de retenção só é incluída se o valor for `> 0` — evita linha de
+ * R$ 0,00 no ledger quando o regime do prestador não tem aquela retenção (ex.: `pj_simples` sem
+ * INSS/IRRF/CSRF/ISS retidos). Fecha por construção: o débito bruto == soma dos créditos é
+ * garantido pela invariante já provada em `calculateVendorRetentionAmountsCents` (`netCents` + as
+ * 4 retenções == `grossCents`) — `postDoubleEntry` confirma isso no teste, esta função não
+ * recalcula nem revalida a soma.
+ */
+export function entriesForVendorPayment(params: EntriesForVendorPaymentParams): LedgerLine[] {
+  const { retention } = params;
+
+  const lines: LedgerLine[] = [
+    {
+      accountId: params.vendorExpenseAccountId,
+      direction: "debit",
+      amountCents: params.grossAmountCents,
+      currency: params.currency,
+    },
+    {
+      accountId: params.cashAccountId,
+      direction: "credit",
+      amountCents: retention.netCents,
+      currency: params.currency,
+    },
+  ];
+
+  const retentionLines: ReadonlyArray<[string, Cents]> = [
+    [params.inssRetentionAccountId, retention.inssCents],
+    [params.irrfRetentionAccountId, retention.irrfCents],
+    [params.csrfRetentionAccountId, retention.csrfCents],
+    [params.issRetentionAccountId, retention.issCents],
+  ];
+
+  for (const [accountId, amountCents] of retentionLines) {
+    if (amountCents > 0) {
+      lines.push({
+        accountId,
+        direction: "credit",
+        amountCents,
+        currency: params.currency,
+      });
+    }
+  }
+
+  return lines;
 }
