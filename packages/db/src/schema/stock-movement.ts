@@ -18,6 +18,11 @@ export const stockMovements = pgTable("stock_movements", {
   itemType: text("item_type").notNull(),
   type: text("type").notNull(), // 'purchase' | 'consumption' | 'adjustment' | 'loss' | 'return'
   quantity: integer("quantity").notNull(),
+  // Fase 8 (Pricing) — só populado em movimentos type='purchase'; fecha a lacuna identificada
+  // nesta sessão entre a Fase 7 (que só modelava QUANTIDADE) e o requisito do roadmap de "custo
+  // variável real" como piso de preço (packages/domain/src/pricing/variable-cost.ts). Nullable
+  // porque consumo/perda/ajuste/devolução não têm um custo unitário próprio nesta fase.
+  unitCostCents: integer("unit_cost_cents"),
   reference: jsonb("reference"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

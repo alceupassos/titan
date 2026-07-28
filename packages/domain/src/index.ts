@@ -32,6 +32,7 @@ export * from "./housekeeping/checklist";
 export * from "./housekeeping/claim-deadline";
 export * from "./vendor";
 export * from "./supply";
+export * from "./pricing";
 
 // Nota de cobertura de invariantes neste pacote (zero I/O) — ver docs/invariantes.md:
 // I1, I2, I3 (via ausência de update/delete no chain + estados terminais, e agora também via
@@ -97,3 +98,11 @@ export * from "./supply";
 // um pool centralizado da operadora) — e expõe `computeReorderPoint`/`shouldTriggerReplenishment`
 // como heurística determinística explícita, não um modelo de forecast (isso fica para a Fase
 // 8/Pricing).
+// pricing/ (Fase 8, Passo 1) implementa os estágios 1-4 do pipeline da seção 9.7 do prompt único
+// (comp set, forecast, otimização, backtest+explicabilidade), com redução de escopo deliberada em
+// cada um: `comp-set.ts` é similaridade por atributos cadastrais, não geo real (sem PostGIS);
+// `forecast.ts` é heurística de taxa histórica por dia da semana, não ML; `optimization.ts` é
+// busca em grade determinística, sem exploração via bandit; `backtest.ts` nunca mascara um
+// ΔRevPAR negativo (disciplina de `.claude/agents/pricing-scientist.md`). `variable-cost.ts`
+// fecha a lacuna identificada nesta sessão entre a Fase 7 (que só modela QUANTIDADE de estoque) e
+// o requisito do roadmap de "custo variável real" como piso — nunca uma constante.

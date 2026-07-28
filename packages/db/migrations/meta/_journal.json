@@ -71,6 +71,13 @@
       "when": 1785247927808,
       "tag": "0009_vendor_rating_count",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785253871060,
+      "tag": "0010_pricing_and_stock_cost",
+      "breakpoints": true
     }
   ]
 }

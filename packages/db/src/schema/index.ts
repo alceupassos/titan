@@ -28,3 +28,5 @@ export * from "./vendor-retention-rule";
 export * from "./stock-item";
 export * from "./stock-movement";
 export * from "./stock-balance";
+export * from "./pricing-snapshot";
+export * from "./pricing-autonomy-config";

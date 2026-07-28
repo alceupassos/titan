@@ -1,12 +1,11 @@
 # Estado do trabalho
 
-**Fase atual:** Fase 7 (Suprimentos e Prestadores) — **todos os 5 passos do plano aprovado
-concluídos**: retenção fiscal de prestador por regime (INSS/IRRF/CSRF/ISS) versionada e sempre
-recalculada no servidor, estoque por unidade com reconciliação de saldo provada por teste,
-migrations 0008/0009, portal do prestador + cadastro/motor de retenção + estoque/reposição
-preditiva em faixas paralelas, com os 2 itens possíveis do portão de saída provados por teste
-(ver seção "Fase 7 — Suprimentos e Prestadores" abaixo). Fases 0-6 seguem fechadas como já
-registrado (commit `65d4e9f`, push para `https://github.com/alceupassos/titan`).
+**Fase atual:** Fase 8 (Pricing) — **todos os 5 passos do plano aprovado concluídos**: comp set
+por atributos cadastrais, forecast por heurística de dia da semana, otimização em grade
+respeitando o piso de custo variável real, backtest com ΔRevPAR provado ≥ 0 e explicabilidade por
+noite, migration 0010 fechando a lacuna de custo de estoque da Fase 7, cockpit `/pricing` real
+verificado ao vivo com Playwright (ver seção "Fase 8 — Pricing" abaixo). Fases 0-7 seguem fechadas
+como já registrado (commit `c35c692`, push para `https://github.com/alceupassos/titan`).
 
 **Gap conhecido 1:** VPS Contabo real ainda não provisionada. "Deploy sem downtime" e
 "restauração de backup cronometrada" têm scripts reais que rodam contra Docker Compose local —
@@ -779,6 +778,117 @@ fiscal + 16 evidence, mais os já existentes); `next build` real de `apps/consol
 (33 rotas, incluindo `/estoque`, `/prestadores`, `/prestadores/[id]`, `/portal-prestador`,
 `/portal-prestador/pagamentos`). Nenhuma migration já commitada foi alterada.
 
-**Próximo passo:** commit/push, depois plan mode para a Fase 8 (Pricing) — depende da Fase 7 ter
-fechado (roadmap: "F7 precisa vir antes — sem custo variável real, o piso de preço seria
-chutado").
+**Próximo passo (histórico):** commit/push, depois plan mode para a Fase 8 (Pricing) — depende da
+Fase 7 ter fechado (roadmap: "F7 precisa vir antes — sem custo variável real, o piso de preço
+seria chutado"); ver seção seguinte para o resultado.
+
+## Fase 8 — Pricing (comp set, forecast, otimização, backtest, explicabilidade)
+
+Plano aprovado em plan mode. **Lacuna real identificada nesta sessão antes de abrir a fase**: um
+agente de exploração confirmou que a Fase 7, como construída, modelava só QUANTIDADE de estoque
+(`packages/domain/src/supply/stock.ts`), nunca custo — nenhum campo `Cents` em `stock_items`/
+`stock_movements`/`stock_balances`. O roadmap condiciona o piso de preço da Fase 8 a "custo
+variável real" (senão "o piso é chutado", violando a seção 9.7). Perguntado como fechar essa
+lacuna, o usuário escolheu **adicionar custo ao estoque**: migration 0010 acrescenta
+`unit_cost_cents` a `stock_movements` do tipo `'purchase'`.
+
+**Faixas paralelas autorizadas pelo roadmap:** "Comp set · forecast · otimização · backtest, todos
+paralelos em worktrees separados" — 4 faixas, feitas via arquivos disjuntos dentro do mesmo
+working tree (mesma técnica de todas as fases anteriores), não `git worktree` real (simplificação
+deliberada e documentada, já que os 4 arquivos nunca colidem).
+
+**ADR relevante:** `docs/adr/0014-fonte-de-dados-pricing.md` — hierarquia de fontes (sinais
+próprios → sinais públicos → dado licenciado → coleta web só com confirmação humana). Esta fase
+implementa só o nível 1 (sinais próprios, a partir de reservas/ocupação do próprio Titan).
+
+**Escopo deliberadamente cortado nesta fase** (seção 9.7 é um pipeline de 6 estágios completo —
+cortar é obrigatório, mesmo padrão de redução de todas as fases anteriores): comp set por
+similaridade de **atributos cadastrais** (categoria/capacidade/preço atual), não geo real (sem
+PostGIS); forecast por **heurística determinística** de taxa histórica por dia da semana, não ML
+(MAPE não se aplica, documentado); otimização por **busca em grade**, sem exploração via bandit
+contextual; `MarketDataProvider` de dado licenciado/sinais públicos não implementado (porta
+declarada, sem adapter); backtest sobre **cenário sintético em memória**, sem histórico real
+(sem Postgres vivo, Gap conhecido 2); sem simulador interativo/relatório exportável.
+
+**Passo 1 — `packages/domain`:** `packages/domain/src/pricing/` — `variable-cost.ts`
+(`computeVariableCostFloorCents`, piso = custo variável total + margem mínima, aceita comissão/
+taxa de gateway zeradas por dívida técnica das Fases 2/3 sem fingir valor realista), `comp-set.ts`
+(`buildCompSet`/`medianCompSetPriceCents`), `forecast.ts` (`forecastOccupancyProbability`/
+`seasonalityFactor`), `optimization.ts` (`optimizeNightlyPriceCents`, busca em grade nunca abaixo
+do piso), `backtest.ts` (`runBacktest`, nunca mascara ΔRevPAR negativo — disciplina de
+`.claude/agents/pricing-scientist.md`), `explainability.ts` (`explainPriceDecision`, `reasoning`
+nunca vazio). 31 testes novos (179 no total do pacote domain antes do Passo 4).
+
+**Passo 2 — `packages/db`:** migration `0010_pricing_and_stock_cost.sql` — `stock_movements`
+ganha `unit_cost_cents` (`CHECK` só permite não-nulo quando `type='purchase'`), nova tabela
+`pricing_snapshots` (I8, append-only — `GRANT SELECT, INSERT` + `REVOKE UPDATE, DELETE, TRUNCATE`,
+`UNIQUE(unit_id, date)`), nova tabela `pricing_autonomy_configs` (configuração corrente por
+unidade — modo sugestão/automático + limite de variação diária, `UPSERT`, `UNIQUE(unit_id)`).
+RLS+grants; journal/snapshot via `drizzle-kit generate` real (regenerado uma vez, ainda dentro do
+Passo 5, para incluir `pricing_autonomy_configs` sem criar uma migration 0011 separada, já que
+0010 não tinha sido commitada ainda) — 11 migrations (0000-0010) descobertas em ordem.
+
+**Passo 3 — `packages/contracts`:** `packages/contracts/src/pricing.ts` —
+`RunPricingSuggestionSchema`, `PublishPriceSchema` (`finalPriceCents` sempre recalculado/validado
+no servidor), `SetPricingAutonomySchema`.
+
+**Passo 4 (4 faixas paralelas, aprofundamento de casos de borda sobre o esboço do Passo 1):**
+- **4a — comp-set:** capacidade zero em ambas as unidades, empate exato de similaridade
+  (ordem determinística confirmada — `Array.prototype.sort` estável desde ES2019), `maxSize`
+  maior que candidatos disponíveis, múltiplos candidatos com `unitId` do alvo, membros órfãos em
+  `medianCompSetPriceCents`. 5 testes novos.
+- **4b — forecast:** histórico de observação única, dow do alvo aparecendo uma única vez, todo o
+  histórico no mesmo dow do alvo, igualdade exata de taxas (fração com denominadores diferentes),
+  ano bissexto (29/02/2028). 7 testes novos.
+- **4c — optimization:** faixa de um único ponto, `stepCents` maior que a faixa, probabilidade
+  zero em toda a faixa, probabilidade negativa (decisão documentada: nunca valida/clampa o
+  retorno do chamador, mesmo espírito de `backtest.ts` confiando em callbacks), `stepCents` não
+  divisor exato do intervalo. 5 testes novos.
+- **4d — backtest + explainability:** cenário de 30 noites com demanda mista (prova mais robusta
+  do ΔRevPAR ≥ 0), preço 0 numa noite ocupada, delta refletindo só diferença de ocupação (preço
+  igual em ambas as colunas), produto cartesiano de casos extremos confirmando `reasoning` nunca
+  vazio, mediana zero/negativa não quebra `format(money(...))`. 5 testes novos.
+- Total após o Passo 4: 201 testes no pacote domain.
+
+**Passo 5 — integração final:** `apps/console/app/(staff)/pricing/pipeline.ts` orquestra os 5
+módulos (comp-set→forecast→variable-cost→optimization→explainability). `actions.ts` —
+`runPricingSuggestionAction` (persiste `pricing_snapshots`), `publishPriceAction` (recusa publicar
+abaixo do piso; variação acima do limite de autonomia abre `ApprovalRequest` tipo
+`price_out_of_band`, reusando a fila de `/aprovacoes` já existente desde a Fase 2, nunca um fluxo
+paralelo), `setPricingAutonomyAction`. `packages/auth/src/abilities.ts` ganhou subject
+`"pricing_snapshot"` (`titan.revenue` read/create/update/approve; `titan.operations` read/create;
+`titan.agent` propose, nunca executa). Teste de integração
+(`packages/domain/src/pricing/pipeline-integration.test.ts`) prova os 2 itens do portão de saída
+sobre um cenário de 30 noites/5 unidades de comp set: `ΔRevPAR >= 0` e `PriceExplanation` não
+vazia para toda noite — 3 testes novos (204 no total do pacote domain).
+
+**Verificação visual real (Playwright, ao vivo)** — cumprindo o que faltava em todas as fases
+anteriores desta sessão (nenhuma tinha sido checada visualmente contra `DESIGN.md` até agora):
+subiu `next dev` real, cookie de sessão mínimo setado (mesma checagem de presença que
+`apps/console/proxy.ts` já faz), screenshot + snapshot de acessibilidade da rota `/pricing` real.
+Encontrou e corrigiu um bug genuíno: `SAMPLE_TARGET_UNIT`/`SAMPLE_CANDIDATE_UNITS` usavam
+`unitId` não-UUID (`"unit-sample-1"`), rejeitado por `RunPricingSuggestionSchema` (`z.string().
+uuid()`) — corrigido para UUIDs de amostra, mesmo padrão de outras fases. Clique real no botão
+"Rodar sugestão de preço" confirmou o caminho de erro esperado (`UnauthenticatedError`, sem
+Postgres/sessão real vivos nesta máquina — Gap conhecido 2), não mais um erro de validação.
+
+**Dívida técnica nova, documentada e não escondida:**
+- Comp set/forecast são heurísticas determinísticas, não a versão completa da seção 9.7 (PostGIS/
+  ML) — ver "Escopo deliberadamente cortado" acima.
+- Sem exploração via bandit contextual — toda sugestão é determinística.
+- `MarketDataProvider` (dado licenciado/sinais públicos) é só uma porta declarada, sem adapter
+  real — sem conta/contrato de dado licenciado nesta máquina.
+- `units` ainda não tem colunas reais de categoria/capacidade (bounded context `inventory` não
+  modelado) — o comp set real depende dessas colunas existirem; a UI de `/pricing` usa amostra
+  para isso, documentado em `sample-data.ts`.
+- Comissão de canal/taxa de gateway seguem provisionadas a zero (dívida das Fases 2/3) — o piso
+  de custo variável usa o que vier dessas fontes, nunca finge um valor realista.
+- Nenhuma Server Action desta fase foi exercitada ponta a ponta contra um Postgres vivo real (só
+  contra sessão real, que também falhou como esperado) — Gap conhecido 2.
+
+**Verificação real feita nesta sessão:** `pnpm turbo run typecheck` limpo nos 17 pacotes;
+`pnpm turbo run test` com todos os testes passando (204 domain, mais os já existentes); `next
+build` real de `apps/console` sem regressão (33 rotas); `next dev` real + Playwright confirmando
+renderização e interação corretas da rota `/pricing`. Nenhuma migration já commitada foi alterada.
+
+**Próximo passo:** commit/push, depois plan mode para a Fase 9 (Pessoas e Campo).

@@ -84,6 +84,15 @@ export type Subject =
   // packages/db/src/schema/stock-movement.ts); corrigir um lançamento errado é um NOVO movimento
   // de ajuste/perda, nunca uma edição do anterior.
   | "stock_movement"
+  // Fase 8, Passo 5 (docs/fase-atual.md): snapshot de decisão de pricing (I8 —
+  // apps/console/app/(staff)/pricing). Subject dedicado em vez de reusar "rate": a decisão aqui é
+  // sobre O REGISTRO RASTREÁVEL de uma sugestão/publicação de preço (comp set usado, piso
+  // calculado, sugerido vs. final), não sobre a tarifa em si (que continua sendo "rate", já
+  // concedida a titan.revenue desde a Fase 0). "propose" (já existente para titan.operations/
+  // titan.agent sobre "rate") cobre rodar a sugestão; "approve" aqui é específico para decidir uma
+  // publicação que caiu em price_out_of_band (mesma fila de /aprovacoes, tipo já existente desde
+  // a Fase 2), nunca um verbo novo.
+  | "pricing_snapshot"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -149,6 +158,12 @@ export function defineAbilityFor(role: Role): AppAbility {
     case "titan.revenue":
       can(["read", "update"], "rate");
       cannot(["read", "update"], "payout_batch"); // sem acesso a repasse/bancário
+      // Fase 8, Passo 5: revenue é quem publica o preço final e decide sobre variação fora da
+      // faixa de autonomia (price_out_of_band) — "create" cobre rodar a sugestão/publicar,
+      // "approve" cobre decidir uma publicação que exigiu aprovação extra.
+      // "update" cobre configurar a autonomia por unidade (modo sugestão/automático + limite de
+      // variação diária) — decisão de configuração, mesmo papel de quem publica/aprova o preço.
+      can(["read", "create", "update", "approve"], "pricing_snapshot");
       break;
     case "titan.operations":
       can("read", "reservation");
@@ -198,6 +213,11 @@ export function defineAbilityFor(role: Role): AppAbility {
       // a partir do painel de /estoque — só "read"/"create", nunca "update"/"delete" (ver
       // comentário de justificativa do subject "stock_movement" acima).
       can(["read", "create"], "stock_movement");
+      // Fase 8, Passo 5: rodar a sugestão de preço (comp set→forecast→otimização→explicabilidade,
+      // persistindo o snapshot) é trabalho operacional do turno — "create" cobre isso; publicar o
+      // preço final e decidir sobre variação fora da faixa continuam exclusivos de titan.revenue
+      // ("approve" acima).
+      can(["read", "create"], "pricing_snapshot");
       break;
     case "titan.support":
       can(["read", "update"], "reservation"); // até alçada — limite real vem de docs/decisoes-de-negocio.md #5
@@ -209,7 +229,7 @@ export function defineAbilityFor(role: Role): AppAbility {
       can("read", "all"); // leitura total, escrita nenhuma
       break;
     case "titan.agent":
-      can("propose", ["rate", "payout_batch", "fiscal_document"]); // nunca executa
+      can("propose", ["rate", "payout_batch", "fiscal_document", "pricing_snapshot"]); // nunca executa
       cannot(["create", "update", "delete", "approve"], "all");
       break;
     case "owner":

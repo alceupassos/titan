@@ -224,3 +224,7 @@ modelo usado, faixa e resultado — é o registro de rastreabilidade e custo do 
 | 2026-07-28T14:24:27.549Z |  | desconhecido | concluído |
 | 2026-07-28T14:25:05.304Z |  | desconhecido | concluído |
 | 2026-07-28T14:25:36.647Z | general-purpose | desconhecido | concluído |
+| 2026-07-28T15:13:51.906Z |  | desconhecido | concluído |
+| 2026-07-28T15:14:23.913Z |  | desconhecido | concluído |
+| 2026-07-28T15:15:21.701Z | Explore | desconhecido | concluído |
+| 2026-07-28T15:58:21.137Z |  | desconhecido | concluído |
