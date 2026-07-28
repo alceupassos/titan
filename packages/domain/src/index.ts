@@ -14,6 +14,12 @@ export * from "./ledger/post-double-entry";
 export * from "./ledger/posting-rules";
 export * from "./approval/approval-request";
 export * from "./approval/approval-state-machine";
+export * from "./channel/listing-mapping";
+export * from "./channel/calendar-delta";
+export * from "./channel/rate-delta";
+export * from "./channel/divergence";
+export * from "./channel/reconciliation";
+export * from "./channel/external-reservation";
 
 // Nota de cobertura de invariantes neste pacote (zero I/O) — ver docs/invariantes.md:
 // I1, I2, I3 (via ausência de update/delete no chain + estados terminais, e agora também via
@@ -24,3 +30,7 @@ export * from "./approval/approval-state-machine";
 // borda/infra — não fazem sentido como função pura de domínio, aplicam-se em packages/payments.
 // I8 (snapshot de decisão de pricing) pertence ao bounded context pricing_intel, ainda não
 // existente (Fase 8) — não fabricado aqui.
+// channel/ (Fase 3, distribuição) reforça I1 para reserva vinda de canal externo (Airbnb,
+// Booking, VRBO, Expedia): `mapExternalReservationToDomain` traduz o shape externo para
+// `ReservationForOverlapCheck` e é validada com o MESMO `canAcceptReservation` que a reserva
+// direta usa — não existe caminho de validação separado por canal (docs/anti-padroes.md #5).

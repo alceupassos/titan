@@ -29,6 +29,12 @@ export type Subject =
   | "user_role"
   | "bank_account"
   | "approval_request"
+  // Fase 3, Passo 4d (docs/fase-atual.md): cockpit de distribuição (apps/console/app/(staff)/
+  // distribuicao) — corrigir divergência de reconciliação, reprocessar item da DLQ e o kill
+  // switch manual por canal (ADR-0020, mitigação exigida). Um subject dedicado em vez de reusar
+  // "reservation" porque a ação aqui é sobre a SAÚDE DO CANAL (packages/channels, ainda em
+  // construção em faixa paralela), não sobre uma reserva individual.
+  | "channel_sync"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -74,6 +80,15 @@ export function defineAbilityFor(role: Role): AppAbility {
       // de sessão cairia sempre em "sem permissão" mesmo com sessão válida.
       can(["create", "update"], "reservation");
       can("propose", "rate"); // dentro de faixa — execução real fica com agente/pricing-scientist
+      // Fase 3, Passo 4d: operations já lida com distribuição no dia a dia (é quem monitora
+      // canal/DLQ/divergência no turno) — "update" cobre resolver divergência e reprocessar item
+      // da DLQ (ambas são correção operacional, não decisão financeira). "approve" cobre
+      // especificamente o kill switch por canal (ADR-0020): desligar um adapter é uma decisão de
+      // maior impacto (derruba disponibilidade do canal inteiro), mas ainda é operações — não
+      // finance/revenue — quem precisa reagir rápido "sem precisar de deploy" no momento de um
+      // bloqueio/suspensão de canal, por isso não fica atrás de uma segunda aprovação formal como
+      // a fila de /aprovacoes.
+      can(["read", "update", "approve"], "channel_sync");
       break;
     case "titan.support":
       can(["read", "update"], "reservation"); // até alçada — limite real vem de docs/decisoes-de-negocio.md #5

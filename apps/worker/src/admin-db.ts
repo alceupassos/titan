@@ -22,7 +22,8 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type pg from "pg";
-import { paymentIntents, webhookEvents } from "@titan/db";
+import { listingMappings, paymentIntents, webhookEvents } from "@titan/db";
+import type { Channel } from "@titan/domain";
 import type { Gateway } from "@titan/payments";
 
 /** Recorte mínimo de `payment_intents` retornado pela consulta admin — literalmente
@@ -36,16 +37,33 @@ export interface PaymentIntentTenantLookup {
   readonly status: string;
 }
 
+/** Recorte mínimo de `listing_mappings` usado pela reconciliação diária
+ * (`jobs/reconcile-channels.ts`, Fase 3, Passo 4c) — precisa varrer TODOS os tenants para achar
+ * todo par (unidade, canal) mapeado, o que só a conexão admin permite (mesmo raciocínio de
+ * `findPaymentIntentByExternalId`: descobrir "a qual tenant isto pertence" exige atravessar RLS).
+ * Depois de resolver o `tenantId` aqui, a persistência de `Divergence` encontrada passa por
+ * `withTenant()` normalmente (ver `channel-sync-repo.ts`), nunca por esta conexão. */
+export interface ListingMappingRow {
+  readonly tenantId: string;
+  readonly unitId: string;
+  readonly channel: Channel;
+  readonly externalListingId: string;
+}
+
 export interface AdminDb {
   /** `true` se o INSERT criou uma linha nova (evento inédito); `false` se
    * `ON CONFLICT (gateway, external_event_id) DO NOTHING` não retornou linha (já processado). */
   insertWebhookEventIfNew(gateway: Gateway, externalEventId: string): Promise<boolean>;
   findPaymentIntentByExternalId(externalId: string): Promise<PaymentIntentTenantLookup | undefined>;
+  /** Todos os mapeamentos unidade<->listing de TODOS os tenants — usado só pela reconciliação
+   * diária para descobrir que (unidade, canal) precisa ser reconciliado; nunca usado para decidir
+   * ou persistir nada além disso sem passar por `withTenant()` depois. */
+  listAllListingMappings(): Promise<ListingMappingRow[]>;
   close(): Promise<void>;
 }
 
 export function createAdminDb(pool: pg.Pool): AdminDb {
-  const db = drizzle(pool, { schema: { paymentIntents, webhookEvents } });
+  const db = drizzle(pool, { schema: { paymentIntents, webhookEvents, listingMappings } });
 
   return {
     async insertWebhookEventIfNew(gateway, externalEventId) {
@@ -63,6 +81,22 @@ export function createAdminDb(pool: pg.Pool): AdminDb {
         .from(paymentIntents)
         .where(eq(paymentIntents.externalId, externalId));
       return row;
+    },
+
+    async listAllListingMappings() {
+      const rows = await db
+        .select({
+          tenantId: listingMappings.tenantId,
+          unitId: listingMappings.unitId,
+          channel: listingMappings.channel,
+          externalListingId: listingMappings.externalListingId,
+        })
+        .from(listingMappings);
+      // `channel` é `text` no schema do banco (packages/db/src/schema/listing-mapping.ts) — cast
+      // para o union type `Channel` de `@titan/domain`, mesmo padrão de `payment-repo.ts` fazendo
+      // `intent.status as PaymentStatus` em `jobs/process-webhook.ts`. Dado inválido aqui seria
+      // corrupção de dado pré-existente, não algo que este cast deveria validar de novo.
+      return rows.map((row) => ({ ...row, channel: row.channel as Channel }));
     },
 
     async close() {

@@ -78,6 +78,54 @@ export interface EntriesForRefundParams {
  * apontando para o `id` do lançamento original correspondente (achado I3: correção nunca edita,
  * só referencia).
  */
+export interface EntriesForChannelCommissionParams {
+  readonly reservationId: string;
+  readonly unitRevenueAccountId: string;
+  /** Conta de ativo — valor a receber do canal (OTA), ainda não liquidado na conta bancária da
+   * Titan. Diferente de `cashAccountId` em `entriesForPaymentCaptured`: reserva "collected by
+   * channel" (seção 9.2 do prompt único) não tem captura de gateway própria — o canal recebe do
+   * hóspede e repassa à Titan depois, então o lançamento inicial é um recebível, não caixa. */
+  readonly channelReceivableAccountId: string;
+  readonly channelCommissionExpenseAccountId: string;
+  readonly grossAmountCents: Cents;
+  readonly commissionAmountCents: Cents;
+  readonly currency: CurrencyCode;
+}
+
+/**
+ * Reserva externa confirmada (I1, via `mapExternalReservationToDomain` +
+ * `canAcceptReservation`/constraint EXCLUDE): débito no recebível do canal pelo valor líquido
+ * (bruto − comissão), débito na despesa de comissão de canal pela comissão, crédito na receita de
+ * hospedagem pelo valor bruto — mesma forma de `entriesForPaymentCaptured`, com "caixa" trocado
+ * por "recebível do canal" porque o dinheiro ainda não chegou à conta bancária da Titan.
+ */
+export function entriesForChannelCommission(params: EntriesForChannelCommissionParams): LedgerLine[] {
+  const netReceivableCents = params.grossAmountCents - params.commissionAmountCents;
+  return [
+    {
+      accountId: params.channelReceivableAccountId,
+      direction: "debit",
+      amountCents: netReceivableCents,
+      currency: params.currency,
+      reservationId: params.reservationId,
+    },
+    {
+      accountId: params.channelCommissionExpenseAccountId,
+      direction: "debit",
+      amountCents: params.commissionAmountCents,
+      currency: params.currency,
+      reservationId: params.reservationId,
+    },
+    {
+      accountId: params.unitRevenueAccountId,
+      direction: "credit",
+      amountCents: params.grossAmountCents,
+      currency: params.currency,
+      reservationId: params.reservationId,
+    },
+  ];
+}
+
 export function entriesForRefund(params: EntriesForRefundParams): LedgerLine[] {
   const originalCashEntry = params.originalEntries.find(
     (e) => e.accountId === params.cashAccountId && e.direction === "debit" && e.currency === params.currency,

@@ -12,6 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@titan/channels": "workspace:*",
+    "@titan/dates": "workspace:*",
     "@titan/db": "workspace:*",
     "@titan/domain": "workspace:*",
     "@titan/money": "workspace:*",

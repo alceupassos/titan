@@ -54,6 +54,10 @@ function buildFakes(intentRow: PaymentIntentFullRow | undefined, tenantLookup: P
   const adminDb: AdminDb = {
     insertWebhookEventIfNew: vi.fn(async () => true),
     findPaymentIntentByExternalId: vi.fn(async () => tenantLookup),
+    // Adicionado na Fase 3, Passo 4c (reconciliação diária de canal, ../admin-db.ts) — não usado
+    // por nenhum teste deste arquivo (webhook de pagamento, Fase 2), fake mínimo só para satisfazer
+    // a interface `AdminDb`.
+    listAllListingMappings: vi.fn(async () => []),
     close: vi.fn(async () => undefined),
   };
 

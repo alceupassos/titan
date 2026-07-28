@@ -1,11 +1,13 @@
 # Estado do trabalho
 
-**Fase atual:** Fase 2 (Direto) — **todos os 6 passos do plano aprovado concluídos**: ledger
-básico + fila de aprovações no domínio, migration 0003, contratos Zod, dois adapters de gateway
-(Asaas/PIX + Stripe/cartão) em faixas paralelas, storefront (`apps/web`) com identidade própria,
-fila real de `/aprovacoes`, worker de webhook com BullMQ, e integração final do checkout
-ponta a ponta. Ver seção "Fase 2 — Direto" abaixo para o detalhe de cada passo. Fase 1 (Core) e
-Fase 0 (Fundação) seguem fechadas como já registrado.
+**Fase atual:** Fase 3 (Distribuição) — **todos os 5 passos do plano aprovado concluídos**:
+domínio de canal/reconciliação, migration 0004, contratos Zod, adapter iCal (4 canais) + adapter
+de automação de navegador do Airbnb (ADR-0020, decisão de risco explícita) em faixas paralelas,
+fila de sincronização com coalescing/DLQ + reconciliação diária + ingestão de reserva externa no
+worker, painel real de `/distribuicao`, e integração final (comissão de canal no ledger,
+propagação de bloqueio I9). Ver seção "Fase 3 — Distribuição" abaixo para o detalhe. Fases 0-2
+seguem fechadas como já registrado (commit `97aaa68`, push para
+`https://github.com/alceupassos/titan`).
 
 **Gap conhecido 1:** VPS Contabo real ainda não provisionada. "Deploy sem downtime" e
 "restauração de backup cronometrada" têm scripts reais que rodam contra Docker Compose local —
@@ -258,6 +260,108 @@ passo; `pnpm turbo run test` com todos os testes passando (53 domain + 28 paymen
 `apps/console` (28 rotas, sem regressão) após a integração final. Nenhuma migration já commitada
 foi alterada.
 
-**Próximo passo:** plan mode para a Fase 3 (Distribuição: iCal + agregador para os 4 canais,
-ingestão, reconciliação) — depende da certificação/contrato de canal, que corre em paralelo
-contínuo conforme `docs/roadmap.md`.
+**Próximo passo (histórico):** plan mode para a Fase 3 — feito; ver seção seguinte para o
+resultado.
+
+## Fase 3 — Distribuição (iCal + agregador próprio, ingestão, reconciliação)
+
+Plano aprovado em plan mode. **Decisão de negócio nova nesta fase** (pergunta 6 de
+`docs/decisoes-de-negocio.md`, agora confirmada): a Titan já tem contrato/conta real com Airbnb,
+Booking, VRBO e Expedia — sem agregador terceirizado, agregador próprio em `packages/channels`.
+**Decisão de risco explícita do usuário**: automação via navegador (Playwright) no painel de
+host do Airbnb, cobrindo tarifa/reserva estruturada que o iCal não alcança — perguntei
+diretamente sobre o risco de violação de ToS/suspensão de conta antes de implementar; o usuário
+confirmou que quer construir mesmo assim. Registrado em `docs/adr/0020-automacao-navegador-canais.md`
+(novo) e em `docs/adr/0004-estrategia-de-canais.md` (atualizado).
+
+**Passo 1 — `packages/domain`:** `packages/domain/src/channel/` — `ListingMapping`,
+`CalendarDelta`, `RateDelta`, `Divergence`, `AvailabilitySnapshot`/`RateSnapshot`,
+`detectAvailabilityDrift`/`detectRateDrift`, `ExternalReservation`/`mapExternalReservationToDomain`
+(I1 — reserva externa passa pela MESMA `canAcceptReservation`/constraint EXCLUDE que reserva
+direta, nunca um caminho separado por canal). 10 testes novos (63 no total do pacote antes do
+Passo 5).
+
+**Passo 2 — `packages/db`:** migration `0004_channel_distribution.sql` — `listing_mappings`
+(UNIQUE por tenant+channel+external_listing_id e por tenant+unit+channel), `channel_sync_log`
+(direction/status, fonte dos KPIs de saúde da distribuição), `divergences` (kind/status, correção
+assistida no cockpit). RLS+grants nas 3 tabelas; journal/snapshot via `drizzle-kit generate` —
+5 migrations (0000-0004) descobertas em ordem.
+
+**Passo 3 — `packages/contracts`:** `ChannelSchema`, `ResolveDivergenceSchema`, `RetrySyncSchema`,
+`ToggleChannelAdapterSchema` (kill switch do ADR-0020).
+
+**Passo 4 — 4 faixas paralelas:**
+- **4a — `packages/channels/src/port.ts` + `src/ical/`:** interface `ChannelAdapter` comum
+  (`capabilities` como dado, nunca `if canal === 'x'` — anti-padrão #5) + `IcalChannelAdapter`
+  (só disponibilidade, unidirecional — sem tarifa/reserva estruturada, limitação real do iCal
+  documentada, não escondida). 12 testes.
+- **4b — `packages/channels/src/browser-automation/`:** `AirbnbBrowserAutomationAdapter` via
+  Playwright, com as 5 mitigações exigidas pelo ADR-0020 implementadas: credenciais só via env
+  (nunca logadas), circuit breaker após falhas consecutivas, throttling conservador (delay mínimo
+  3s), kill switch (`enable()`/`disable()`), fragilidade estrutural documentada no cabeçalho do
+  arquivo. **Seletores CSS e fluxo de navegação são hipotéticos — nunca verificados contra o
+  painel real do Airbnb** (sem conta configurada nesta máquina). 11 testes, tudo com driver fake
+  (zero Playwright real nos testes).
+- **4c — `apps/worker`:** fila `channel-sync` com coalescing (jobId fixo por
+  tenant+unidade+canal+tipo), backoff exponencial com jitter, DLQ registrada em
+  `channel_sync_log`; fila separada de reconciliação diária (cron 03:00). 21 testes novos.
+- **4d — `apps/console` `/distribuicao`:** painel real — KPIs de canais conectados/divergências/
+  DLQ/última sync, lista de divergências com correção assistida (aceitar remoto/local), reprocesso
+  de DLQ, kill switch por canal. `packages/auth/src/abilities.ts` ganhou subject
+  `"channel_sync"` para `titan.operations`.
+
+**Passo 5 — integração final (feita diretamente, reconciliando as 4 faixas):**
+- Migrado `apps/worker` do mirror local de `ChannelAdapter` (criado pela faixa 4c antes de
+  `packages/channels` terminar) para o tipo real de `@titan/channels` — sem mudança de
+  comportamento, só troca de import (as duas faixas paralelas coordenaram corretamente via
+  `port.ts` compartilhado, mesmo padrão já usado com sucesso na Fase 2).
+- Bootstrap (`apps/worker/src/index.ts`) agora popula o registro de adapters de verdade:
+  `IcalChannelAdapter` para os 4 canais, sobrescrito por `AirbnbBrowserAutomationAdapter` no
+  Airbnb (kill switch via `AIRBNB_CHANNEL_ENABLED=false`).
+- `packages/domain/src/ledger/posting-rules.ts` ganhou `entriesForChannelCommission` (I1/9.2 —
+  "collected by channel"): débito no recebível do canal (não caixa — o dinheiro ainda não chegou
+  à conta bancária da Titan), débito na despesa de comissão, crédito na receita de hospedagem.
+  1 teste novo (64 no total do pacote domain).
+- Novo job `apps/worker/src/jobs/ingest-external-reservations.ts`: para canais com
+  `capabilities.pullReservations` (hoje só Airbnb), busca reservas novas, resolve o
+  `ListingMapping` (varredura cross-tenant via conexão admin), mapeia via
+  `mapExternalReservationToDomain`, insere como `pending` com o MESMO tratamento `23P01` já usado
+  no cockpit/storefront, e posta a comissão de canal no ledger. Reserva sem mapeamento ou que
+  viola I1 nunca é descartada em silêncio — vira `Divergence` (`unmapped_reservation`/
+  `availability_mismatch`) para correção assistida no cockpit. Fila própria (`channel-sync-dates`,
+  cron a cada 3 min — dentro da folga do portão de saída "<5 min"). 5 testes novos.
+- Propagação de bloqueio I9: `channel-sync-repo.ts`'s `buildAvailabilitySnapshot` agora também
+  considera `units.status` — unidade fora de `ready`/`occupied` bloqueia o horizonte inteiro para
+  os 4 canais, não só os dias com reserva.
+
+**Dívida técnica nova, documentada e não escondida:**
+- **Gap real de trigger**: a lógica de propagação de bloqueio I9 está correta e pronta, mas
+  **nenhuma Server Action do cockpit hoje transiciona `units.status` para um estado de bloqueio
+  nem enfileira um job de `channel-sync` quando isso acontece** — esse "algo" (bounded context
+  `housekeeping`/`inventory`) ainda não existe em nenhuma fase construída. A propagação dispara
+  assim que existir, sem precisar de mudança nesta lógica.
+- Comissão de canal é provisionada com taxa **zero** — não há, nesta fase, nenhuma fonte real de
+  percentual de comissão por canal (isso é `settlement_batch`/conciliação de repasse, Fase 5).
+  Documentado no topo de `ingest-external-reservations.ts`: nunca um percentual inventado.
+- Kill switch do ADR-0020 (`toggleChannelAdapterAction` no cockpit) **não persiste de verdade** —
+  não existe tabela `channel_adapter_config` (fora do escopo de `packages/db` desta fase); a
+  action sempre retorna erro explícito em vez de fingir que desligou algo. O kill switch real
+  hoje só existe via variável de ambiente (`AIRBNB_CHANNEL_ENABLED`) no bootstrap do worker,
+  exigindo reinício do processo — não um toggle ao vivo pelo cockpit.
+- Resolver divergência/retry de DLQ pelo cockpit têm a parte de banco real (marca
+  `status`/grava `retry_requested`), mas a EXECUÇÃO de fato (reenviar push ao canal) depende de
+  comunicação entre processos (Next ↔ worker) não implementada nesta fase — documentado como TODO
+  explícito no código, mesmo padrão da dívida de reembolso da Fase 2.
+- Seletores/fluxo do adapter de automação de navegador do Airbnb são hipotéticos, nunca
+  verificados contra produção — ver ADR-0020 para o risco estrutural completo.
+- Nenhuma chamada de rede real (iCal ou automação de navegador) foi verificada nesta sessão — sem
+  conta real de nenhum canal configurada nesta máquina.
+
+**Verificação real feita nesta sessão:** `pnpm turbo run typecheck` limpo nos 17 pacotes;
+`pnpm turbo run test` com todos os testes passando (64 domain + 23 channels + 40 worker, mais os
+já existentes); `next build` real de `apps/console` e `apps/web` sem regressão após a integração
+final. Nenhuma migration já commitada foi alterada.
+
+**Próximo passo:** commit/push, depois plan mode para a Fase 4 (Fiscal) — **bloqueada pelas
+perguntas 1 e 2 de `docs/decisoes-de-negocio.md`** (regime da operação e quem emite a nota),
+ainda pendentes; não posso planejar essa fase sem essas respostas.

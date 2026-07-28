@@ -66,10 +66,20 @@ com o usuário antes da Fase 0 fechar `packages/approvals`).
 **Pergunta:** já existe contrato com alguma OTA ou agregador (Hostaway, Guesty, Beds24, Rentals
 United, NextPax, Lodgify) hoje?
 
-**Resposta:** _pendente_
+**Resposta:** confirmada — a Titan **já tem contrato/conta real** com Airbnb, Booking, VRBO e
+Expedia (não o cenário "sem contrato" assumido pelo default do ADR-0004). **Não** será usado
+agregador terceirizado (Hostaway/Guesty/Beds24/etc.) — a Titan constrói seu próprio agregador em
+`packages/channels`, com iCal como backbone seguro para os 4 canais e uma automação via
+navegador (Playwright) especificamente para o Airbnb, cobrindo o que o iCal não alcança
+(tarifas/reservas estruturadas, já que o Airbnb não tem API pública sem aprovação de meses no
+Partner Program). Respondida ao abrir a Fase 3 (docs/roadmap.md).
 
-**Default assumido enquanto pendente:** nenhum contrato existente — ADR-0004 segue com iCal +
-agregador a escolher na Fase 3.
+**Risco assumido explicitamente pelo usuário:** a automação via navegador no painel de host do
+Airbnb tipicamente viola os Termos de Serviço da plataforma, mesmo usando a conta própria da
+Titan — risco real de suspensão de conta, não uma questão puramente técnica. Perguntado
+diretamente antes de prosseguir; o usuário confirmou que quer construir mesmo assim. Ver
+`docs/adr/0020-automacao-navegador-canais.md` para o registro completo da decisão e das
+mitigações de design (que reduzem impacto, não eliminam o risco).
 
 ## 7. Propriedade do enxoval
 

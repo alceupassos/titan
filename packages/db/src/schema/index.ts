@@ -9,3 +9,6 @@ export * from "./ledger-entry";
 export * from "./payment";
 export * from "./webhook-event";
 export * from "./approval-request";
+export * from "./listing-mapping";
+export * from "./channel-sync-log";
+export * from "./divergence";

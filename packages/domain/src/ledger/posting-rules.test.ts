@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { postDoubleEntry } from "./post-double-entry";
-import { OriginalLedgerEntryNotFoundError, entriesForPaymentCaptured, entriesForRefund } from "./posting-rules";
+import {
+  OriginalLedgerEntryNotFoundError,
+  entriesForChannelCommission,
+  entriesForPaymentCaptured,
+  entriesForRefund,
+} from "./posting-rules";
 
 function idGen(prefix: string): () => string {
   let n = 0;
@@ -102,5 +107,39 @@ describe("entriesForRefund — I3, estorno referencia o lançamento original", (
         currency: "BRL",
       }),
     ).toThrow(OriginalLedgerEntryNotFoundError);
+  });
+});
+
+describe("entriesForChannelCommission — I1/9.2, reserva externa (collected by channel)", () => {
+  it("gera linhas que fecham (débito recebível líquido + débito comissão == crédito bruto)", () => {
+    const lines = entriesForChannelCommission({
+      reservationId: "res-airbnb-1",
+      unitRevenueAccountId: "acc-revenue",
+      channelReceivableAccountId: "acc-channel-receivable",
+      channelCommissionExpenseAccountId: "acc-channel-commission",
+      grossAmountCents: 50000,
+      commissionAmountCents: 7500,
+      currency: "BRL",
+    });
+
+    const entries = postDoubleEntry({
+      tenantId: "tenant-1",
+      lines,
+      createdAtEpochMs: 0,
+      idGenerator: idGen("le-channel"),
+    });
+
+    expect(entries).toHaveLength(3);
+    const receivableLine = entries.find((e) => e.accountId === "acc-channel-receivable")!;
+    const commissionLine = entries.find((e) => e.accountId === "acc-channel-commission")!;
+    const revenueLine = entries.find((e) => e.accountId === "acc-revenue")!;
+
+    expect(receivableLine.direction).toBe("debit");
+    expect(receivableLine.amountCents).toBe(42500); // 50000 - 7500
+    expect(commissionLine.direction).toBe("debit");
+    expect(commissionLine.amountCents).toBe(7500);
+    expect(revenueLine.direction).toBe("credit");
+    expect(revenueLine.amountCents).toBe(50000);
+    expect(entries.every((e) => e.reservationId === "res-airbnb-1")).toBe(true);
   });
 });
