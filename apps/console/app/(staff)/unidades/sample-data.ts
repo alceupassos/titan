@@ -149,8 +149,14 @@ export const SAMPLE_TARGET_DATE: CivilDate = civilDate("2026-08-01");
 export function buildVariableCostInputs(
   seedOffset: number,
 ) {
+  // `seedOffset` chega como o código de 3 dígitos da unidade (506/609/312/409) — reduzido a um
+  // dígito (0-9) antes de escalar o custo, para não inflar o piso muito acima do teto de preço
+  // (achado real: sem este `% 10`, seedOffset=506 produzia um piso de custo variável 2-3x maior
+  // que o preço da própria unidade, e `optimizeNightlyPriceCents` rejeitava com
+  // `InvalidPriceRangeError` — encontrado só ao verificar a página ao vivo no VPS).
+  const smallSeed = seedOffset % 10;
   return {
-    cleaningCostCents: 9000 + seedOffset * 200,
+    cleaningCostCents: 9000 + smallSeed * 200,
     linenReplenishmentCostCents: 1600,
     channelCommissionBasisPoints: 0,
     gatewayRateBasisPoints: 0,
@@ -162,8 +168,9 @@ export const SAMPLE_MINIMUM_MARGIN_BASIS_POINTS = 2000; // 20%
 /** Backtest sintético (30 noites) por unidade — mesmo espírito de pricing/sample-data.ts,
  * variando levemente por `seedOffset` para o ΔRevPAR não ser idêntico entre os 4 studios. */
 export function buildBacktestNights(seedOffset: number) {
-  const fixed = 27000 + seedOffset * 300;
-  const suggestedLow = 18000 + seedOffset * 200;
+  const smallSeed = seedOffset % 10; // mesmo motivo do `% 10` em buildVariableCostInputs acima.
+  const fixed = 27000 + smallSeed * 300;
+  const suggestedLow = 18000 + smallSeed * 200;
   const suggestedHigh = fixed + 3000;
   return [
     ...Array.from({ length: 12 }, () => ({
