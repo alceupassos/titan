@@ -101,10 +101,12 @@ mitigações de design (que reduzem impacto, não eliminam o risco).
 
 **Pergunta:** enxoval é da Titan ou do proprietário?
 
-**Resposta:** _pendente_
-
-**Default assumido enquanto pendente:** Titan (ativo circulante em rotação), sujeito a correção
-antes do portão da Fase 7.
+**Resposta:** confirmada — **o proprietário** é dono do enxoval de cada unidade, não a Titan.
+Respondida ao abrir a Fase 7 (docs/roadmap.md), 2026-07-28. **Implica que
+`packages/supply`/`packages/inventory` precisa rastrear estoque de enxoval por unidade/
+proprietário (não um pool centralizado da operadora), e que reposição de enxoval é despesa
+daquele proprietário específico no repasse (mesmo padrão de rateio configurável por contrato já
+decidido na pergunta 4) — nunca uma linha de custo genérica da Titan.**
 
 ## 8. Gateways de lançamento (F2)
 
