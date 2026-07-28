@@ -50,6 +50,13 @@
       "when": 1785239768650,
       "tag": "0006_financeiro",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785243280875,
+      "tag": "0007_housekeeping_evidence",
+      "breakpoints": true
     }
   ]
 }

@@ -34,10 +34,17 @@ precisa de confirmação formal do contador/jurídico antes de produção real.
 
 **Pergunta:** CLT, PJ ou terceirizada?
 
-**Resposta:** _pendente_
+**Resposta:** _pendente_ — o usuário recusou responder diretamente ao ser perguntado na abertura
+da Fase 6 ("Ainda não decidido / perguntar ao jurídico", 2026-07-27) e, questionado sobre como
+proceder dado o bloqueio, optou explicitamente por seguir com o default abaixo em vez de esperar
+ou de eu presumir uma resposta que só o jurídico pode dar.
 
 **Default assumido enquanto pendente:** nenhum — `workforce/` fica com os dois desenhos
 (`employee` e `contractor`) especificados em paralelo até a resposta, sem implementar nenhum.
+**Consequência real na Fase 6** (docs/roadmap.md): nenhum bounded context de vínculo foi
+modelado; `cleaning_tasks.assigned_to` é texto livre, sem vínculo formal, e o checklist funciona
+só como especificação de escopo de serviço, nunca como controle de jornada (seção 9.10.6). Segue
+bloqueando o portão de saída da Fase 9 (Pessoas e Campo) até ser respondida.
 
 ## 4. Contrato de administração — quem paga o quê
 

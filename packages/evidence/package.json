@@ -4,5 +4,17 @@
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
-  "description": "Captura, hash chain, assurance levels A0-A3. Escopo: Fase 6 (docs/roadmap.md). Proprietário exclusivo: evidence-specialist. I10 — nenhuma rota de exclusão, para nenhum papel."
+  "types": "./src/index.ts",
+  "description": "Captura, hash chain, assurance levels A0-A3. Escopo: Fase 6 (docs/roadmap.md). Proprietário exclusivo: evidence-specialist. I10 — nenhuma rota de exclusão, para nenhum papel. Passo 4a: verificação de captura (recálculo de hash, assinatura HMAC, desvio de relógio), luminância/average-hash e ancoragem diária (NÃO RFC 3161 real).",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@titan/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "typescript": "^5.7.0"
+  }
 }

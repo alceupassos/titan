@@ -338,7 +338,18 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.1)(lightningcss@1.32.0)(supports-color@7.2.0)
 
-  packages/evidence: {}
+  packages/evidence:
+    dependencies:
+      '@titan/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)(lightningcss@1.32.0)(supports-color@7.2.0)
 
   packages/fiscal:
     dependencies:

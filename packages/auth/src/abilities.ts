@@ -41,6 +41,28 @@ export type Subject =
   // "reservation" porque a ação aqui é sobre a SAÚDE DO CANAL (packages/channels, ainda em
   // construção em faixa paralela), não sobre uma reserva individual.
   | "channel_sync"
+  // Fase 6, Passo 4c (docs/fase-atual.md): editor de checklist versionado
+  // (apps/console/app/(staff)/limpeza/checklists) — subject dedicado porque criar uma NOVA VERSÃO
+  // de template é decisão de configuração de padrão de qualidade da operação (o que conta como
+  // "virada aprovada"), não uma ação sobre uma virada/reserva individual. Nunca ganha "update":
+  // uma versão já criada é imutável por design (mesmo princípio de `tax_rules`/
+  // `administration_contracts` — nova versão é linha nova, jamais edição da vigente).
+  | "checklist_template"
+  // Fase 6, Passo 4c: fila de OS técnica (apps/console/app/(staff)/limpeza/servicos) — já existia
+  // como conceito no domínio (`packages/domain/src/work-order/state-machine.ts`, seção 9.10.2)
+  // desde a Fase 0, mas nenhuma faixa anterior tinha adicionado o subject CASL correspondente
+  // (conferido antes de declarar: nenhuma ocorrência de "work_order" neste arquivo até aqui).
+  // "update" cobre abrir uma nova execução de rework/transicionar estado — a transição em si só é
+  // aceita se `canTransitionWorkOrder` (FSM do domínio) permitir, checado na Server Action antes de
+  // qualquer UPDATE; CASL só decide "este papel pode mexer em OS", não "para qual estado".
+  | "work_order"
+  // Fase 6, Passo 4d (docs/fase-atual.md): painel de revisão fotográfica de limpeza
+  // (apps/console/app/(staff)/limpeza/revisao/[taskId], seção 9.8.1) — decidir sobre uma
+  // cleaning_task (aprovar/aprovar com observação/reprovar com motivo). Subject dedicado em vez
+  // de reusar "work_order" ou "reservation": a decisão aqui é sobre a TAREFA DE VIRADA
+  // (packages/db's cleaning_tasks), distinta da OS técnica (work_order, seção 9.10.2) e da
+  // reserva em si — mesmo raciocínio já usado para "channel_sync" acima.
+  | "cleaning_task"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -116,6 +138,33 @@ export function defineAbilityFor(role: Role): AppAbility {
       // bloqueio/suspensão de canal, por isso não fica atrás de uma segunda aprovação formal como
       // a fila de /aprovacoes.
       can(["read", "update", "approve"], "channel_sync");
+      // Fase 6, Passo 4c: editor de checklist é operação de configuração (define o padrão de
+      // qualidade de virada), não decisão financeira — por isso `titan.operations`, não
+      // `titan.finance`, mesmo espírito de `can("propose", "rate")` acima (operations lida com a
+      // ferramenta do dia a dia). Só "read"/"create" — nunca "update": versão já criada é
+      // imutável (ver comentário do subject "checklist_template" acima).
+      can(["read", "create"], "checklist_template");
+      // Abrir OS e transicionar seu estado (dispatch, aceite, execução, rework) é trabalho
+      // operacional do turno — "update" cobre a transição de status em si; a FSM
+      // (`canTransitionWorkOrder`) decide se aquela transição específica é válida, não esta
+      // ability.
+      can(["read", "create", "update"], "work_order");
+      // Fase 6, Passo 4d: decidir a revisão fotográfica de uma virada (aprovar/aprovar com
+      // observação/reprovar com motivo) é decisão operacional do turno, não financeira em si —
+      // "approve" cobre as três decisões possíveis (mesma convenção de "approve"/"approval_request"
+      // acima: CASL só decide "este papel pode decidir sobre a revisão?", nunca qual das três
+      // decisões — a distinção real vem do Zod (`ReviewDecisionSchema`) + do domínio
+      // (`enforceAssuranceLevel`), não de abilities separadas). "read" cobre abrir o painel.
+      // Fase 6, Passo 4b (docs/fase-atual.md): quadro do dia de limpeza
+      // (apps/console/app/(staff)/limpeza) — "create" cobre atribuir a virada a um responsável
+      // (`assignCleaningTaskAction`, que também transiciona a unidade dirty->cleaning via
+      // `transitionUnit`, I9); "update" cobre reatribuir o responsável
+      // (`reassignCleaningTaskAction`, sem mudar status). Já existia `can(["read","approve"],
+      // "cleaning_task")` para a revisão fotográfica (Passo 4d, acima) — mesclado numa única
+      // chamada em vez de duplicar o subject (CASL soma regras por role, não por chamada; uma
+      // segunda `can(..., "cleaning_task")` funcionaria também, mas duplicaria a declaração sem
+      // motivo).
+      can(["read", "create", "update", "approve"], "cleaning_task");
       break;
     case "titan.support":
       can(["read", "update"], "reservation"); // até alçada — limite real vem de docs/decisoes-de-negocio.md #5
