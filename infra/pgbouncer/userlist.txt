@@ -1,4 +1,6 @@
--- placeholder: gerado em runtime pelo script de bootstrap a partir de POSTGRES_PASSWORD.
--- Nunca commitar hash real de senha de produção neste arquivo (block-secrets.mjs cobre .env,
--- não este arquivo especificamente — tratar como segredo mesmo assim).
-"titan" "md5_hash_gerado_no_bootstrap"
+-- Credencial de DEV apenas (senha fixa "titan_app_dev_only", mesmo padrão do POSTGRES_PASSWORD
+-- default já commitado em docker-compose.yml — não é segredo de produção). Hash calculado como
+-- 'md5' + md5(password || username), formato exigido pelo PgBouncer, verificado com
+-- `node -e "console.log('md5'+require('crypto').createHash('md5').update('titan_app_dev_onlytitan_app').digest('hex'))"`.
+-- Produção: gerar por SOPS/age ou Infisical (ver infra/README.md), nunca reusar este hash.
+"titan_app" "md578134b6ae91c5888e8fa9d1ed9ec24c2"

@@ -9,7 +9,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
-    "test:auth": "turbo run test:auth",
+    "test:auth": "node scripts/check-test-auth-matrix.mjs",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "db:migrate": "pnpm --filter @titan/db run migrate",

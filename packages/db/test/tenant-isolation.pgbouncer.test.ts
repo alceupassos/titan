@@ -4,6 +4,12 @@
 // Exige Docker Desktop ativo nesta máquina. Se `docker version` falhar, este arquivo é pulado
 // (describe.skip) em vez de quebrar o resto da suíte — mas a prova do portão de F0 continua
 // pendente até rodar com sucesso (ver docs/fase-atual.md).
+//
+// Roda como `titan_app` (não-superusuário, NOBYPASSRLS) através do PgBouncer — nunca como
+// `titan` (superusuário). Conectar como superusuário faria FORCE ROW LEVEL SECURITY não valer
+// para a sessão, e o teste "provaria" isolamento que não existe de verdade (achado F-1 da
+// auditoria de segurança da Fase 0). `titan` só é usado aqui para bootstrap administrativo
+// (criar o papel, aplicar migrations, semear dados) — nunca para as queries tenant-scoped.
 import { GenericContainer, Network, Wait } from "testcontainers";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import type { StartedTestContainer, StartedNetwork } from "testcontainers";
@@ -24,6 +30,8 @@ async function isDockerAvailable(): Promise<boolean> {
   }
 }
 
+const APP_PASSWORD = "titan_app_test_only";
+
 describe.skipIf(!dockerAvailable)("I: isolamento de tenant sob PgBouncer real (modo transação)", () => {
   let network: StartedNetwork;
   let postgres: StartedPostgreSqlContainer;
@@ -41,27 +49,38 @@ describe.skipIf(!dockerAvailable)("I: isolamento de tenant sob PgBouncer real (m
       .withPassword("titan_test_only")
       .start();
 
-    // Aplica a migration 0000 direto (sem drizzle-kit) para manter o teste autocontido.
-    const directClient = new pg.Client({ connectionString: postgres.getConnectionUri() });
-    await directClient.connect();
-    const migrationSql = readFileSync(
+    // Bootstrap administrativo como `titan` (superusuário desta imagem efêmera): cria o papel
+    // não-superusuário `titan_app` (Testcontainers não roda infra/postgres/init/*.sh, então essa
+    // parte do bootstrap real precisa ser replicada aqui) e aplica as migrations 0000+0001.
+    const adminClient = new pg.Client({ connectionString: postgres.getConnectionUri() });
+    await adminClient.connect();
+    await adminClient.query(
+      `CREATE ROLE titan_app LOGIN PASSWORD '${APP_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;`,
+    );
+    const migration0000 = readFileSync(
       path.join(import.meta.dirname, "..", "migrations", "0000_init.sql"),
       "utf8",
     );
-    await directClient.query(migrationSql);
-    await directClient.end();
-
-    // Userlist do PgBouncer precisa do hash md5 correto para o par usuário/senha do Postgres.
-    const md5 = `md5${(await import("node:crypto"))
-      .createHash("md5")
-      .update("titan_test_onlytitan")
-      .digest("hex")}`;
+    const migration0001 = readFileSync(
+      path.join(import.meta.dirname, "..", "migrations", "0001_app_role_grants_and_rls.sql"),
+      "utf8",
+    );
+    await adminClient.query(migration0000);
+    await adminClient.query(migration0001);
+    await adminClient.end();
 
     pgbouncer = await new GenericContainer("edoburu/pgbouncer:latest")
       .withNetwork(network)
       .withNetworkAliases("pgbouncer")
+      // O entrypoint do edoburu/pgbouncer só ESCREVE credenciais em userlist.txt a partir de
+      // DATABASE_URL se o arquivo já existir (`-e "${_AUTH_FILE}"` no entrypoint.sh) — sem isso,
+      // a autenticação falharia em silêncio. Copiamos um arquivo vazio antes do start para que
+      // a condição passe e o entrypoint complete o resto.
+      .withCopyContentToContainer([
+        { content: "", target: "/etc/pgbouncer/userlist.txt" },
+      ])
       .withEnvironment({
-        DATABASE_URL: `postgres://titan:titan_test_only@postgres:5432/titan_test`,
+        DATABASE_URL: `postgres://titan_app:${APP_PASSWORD}@postgres:5432/titan_test`,
         POOL_MODE: "transaction",
         // Pool de tamanho 1: FORÇA duas conexões de cliente a compartilhar a MESMA conexão
         // física com o Postgres, sequencialmente — é isso que expõe o vazamento de `SET` sem
@@ -78,8 +97,8 @@ describe.skipIf(!dockerAvailable)("I: isolamento de tenant sob PgBouncer real (m
     pool = new pg.Pool({
       host: bouncerHost,
       port: bouncerPort,
-      user: "titan",
-      password: "titan_test_only",
+      user: "titan_app",
+      password: APP_PASSWORD,
       database: "titan_test",
       max: 2, // 2 clientes lógicos competindo pela 1 conexão física do pgbouncer
     });
@@ -135,10 +154,13 @@ describe.skipIf(!dockerAvailable)("I: isolamento de tenant sob PgBouncer real (m
   }, 60_000);
 
   it("CONTROLE NEGATIVO: SET sem LOCAL vaza contexto de tenant sob a mesma pool reciclada", async () => {
-    const { tenantA, tenantB } = await seedTwoTenants();
+    const { tenantA } = await seedTwoTenants();
 
     // Conexão dedicada (max:1 implícito ao usar um único client) para garantir reuso físico
-    // determinístico dentro deste teste específico.
+    // determinístico dentro deste teste específico. Variante DELIBERADAMENTE insegura — existe
+    // só para provar que `SET` sem `LOCAL` vaza contexto sob pooling de transação. NUNCA usar
+    // este padrão fora deste arquivo de teste (bloqueado por
+    // .claude/hooks/block-set-without-local.mjs em qualquer código real do produto).
     const client = await pool.connect();
     try {
       // Cliente 1 seta o tenant SEM LOCAL (não está dentro de uma transação com escopo real).
@@ -163,8 +185,6 @@ describe.skipIf(!dockerAvailable)("I: isolamento de tenant sob PgBouncer real (m
       } finally {
         secondClient.release();
       }
-
-      void tenantB; // mantido para simetria de seed; não usado neste controle específico
     } finally {
       // client já foi liberado acima
     }

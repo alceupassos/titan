@@ -11,9 +11,12 @@ import { Pool } from "pg";
 
 export function createAuth() {
   return betterAuth({
+    // `titan_app` (não-superusuário) — nunca `titan` (achado F-1 da auditoria de segurança de
+    // F0, também presente aqui e corrigido junto: qualquer conexão como superusuário ignora
+    // FORCE ROW LEVEL SECURITY, inclusive nas tabelas que o próprio Better Auth gerencia).
     database: new Pool({
       connectionString:
-        process.env.DATABASE_URL ?? "postgresql://titan:titan_dev_only@localhost:6432/titan_dev",
+        process.env.DATABASE_URL ?? "postgresql://titan_app:titan_app_dev_only@localhost:6432/titan_dev",
     }),
     // Passwordless por padrão na área do hóspede (seção 7.1) — magic-link/OTP cobre isso; staff
     // e proprietário com acesso financeiro usam MFA obrigatório via twoFactor/passkey.
@@ -32,10 +35,15 @@ export function createAuth() {
       twoFactor(),
       passkey(),
       magicLink({
-        sendMagicLink: async ({ email, url }) => {
+        sendMagicLink: async ({ email }) => {
           // TODO(Fase 2): plugar provedor transacional (Resend/SES/Postmark) — nunca SMTP da
           // VPS (seção 4.4.4 do prompt único). Placeholder até o pacote de e-mail existir.
-          console.log(`[auth] magic link para ${email}: ${url}`);
+          //
+          // Nunca logar `url` nem `email` (achado da varredura de convenção da Fase 0): a URL
+          // do magic link É uma credencial de bearer — quem a lê faz login como esse usuário —
+          // e o e-mail é PII. `pino` com `redact` ainda não existe neste pacote (F0); até lá,
+          // nem placeholder de desenvolvimento deve escrever nenhum dos dois em log.
+          console.log("[auth] magic link solicitado (destinatário e URL omitidos do log de propósito)");
         },
       }),
     ],

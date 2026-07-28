@@ -26,6 +26,8 @@ Thumbs.db
 coverage/
 playwright-report/
 test-results/
+.playwright-mcp/
+console-preview.png
 
 # Storybook
 storybook-static/

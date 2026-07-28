@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// PreToolUse (Write) — nunca commitar .env com valor, .pfx/.p12, chave privada ou token.
+// PreToolUse (Edit|Write) — nunca commitar .env com valor, .pfx/.p12, chave privada ou token.
+// Registrado para Edit também (achado F-7 da auditoria de segurança de F0): editar um segredo
+// para DENTRO de um arquivo já existente contornava este guarda quando só rodava em Write.
 import { readFileSync } from "node:fs";
 
 function readStdin() {
@@ -13,7 +15,9 @@ function readStdin() {
 const payload = readStdin();
 const input = payload?.tool_input ?? {};
 const filePath = input.file_path ?? "";
-const content = input.content ?? "";
+// `new_string` cobre o payload de Edit; `content` cobre Write. Faltava `new_string` antes
+// (achado F-7) — Edit sempre passava despercebido, mesmo com o matcher certo registrado.
+const content = input.content ?? input.new_string ?? "";
 
 const isEnvFile = /(^|[\\/])\.env(\.|$)/.test(filePath) && !/\.env\.example$/.test(filePath);
 const isCertFile = /\.(pfx|p12)$/.test(filePath);

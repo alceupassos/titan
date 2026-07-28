@@ -1,6 +1,7 @@
 # ADR-0017 — MCPs instalados, escopos e separação dev/prod
 
-**Status:** Proposto (Rodada 0) — aguardando "ok"
+**Status:** Ajustado na Fase 0 (2026-07-27) — servidor PostgreSQL de terceiro removido de
+`.mcp.json` (ver Consequências).
 
 ## Contexto
 O ecossistema MCP muda rápido; a spec exige verificar nome, origem e permissão antes de instalar
@@ -34,3 +35,17 @@ nenhuma instância.
 ## Consequências
 - `.mcp.json` versionado no repositório como fonte de verdade dos servidores autorizados.
 - Qualquer novo MCP passa por esta mesma checagem antes de entrar no `.mcp.json`.
+
+## Ajuste na Fase 0 (achado F-4 da auditoria de segurança)
+
+O servidor `@modelcontextprotocol/server-postgres`, incluído inicialmente como "postgres-dev",
+foi **removido** de `.mcp.json`. Esse pacote expõe uma ferramenta de query SQL irrestrita — é,
+na prática, `raw_sql` — e a linha de `raw_sql` na tabela de ferramentas bloqueadas acima proíbe
+isso para qualquer agente, em qualquer instância, sem exceção para "é só dev". Não existe forma
+de "restringir" esse pacote a schema/EXPLAIN apenas; a ferramenta que ele expõe é SQL arbitrário
+por definição.
+
+Enquanto não houver um MCP de introspecção de schema genuinamente somente-leitura e escopado
+(schema + `EXPLAIN` apenas, sem `query` de SQL livre), introspecção de banco em desenvolvimento
+acontece via `psql`/`drizzle-kit studio` rodados diretamente pelo desenvolvedor — nunca como
+ferramenta MCP permanentemente disponível a qualquer subagente.

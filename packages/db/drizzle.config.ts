@@ -5,8 +5,12 @@ export default defineConfig({
   schema: "./src/schema/*.ts",
   out: "./migrations",
   dbCredentials: {
-    // Aponta para o PgBouncer local em dev — não direto no Postgres — para que o desenvolvedor
-    // já trabalhe sob o mesmo modo de pooling que a aplicação usa em produção.
-    url: process.env.DATABASE_URL ?? "postgresql://titan:titan_dev_only@localhost:6432/titan_dev",
+    // Migrations rodam como `titan` (admin/superusuário), DIRETO no Postgres — nunca pelo
+    // PgBouncer (DDL sob pooling de transação é problemático) e nunca como `titan_app` (que não
+    // tem privilégio para os GRANT/CREATE que as migrations fazem). A aplicação em runtime usa
+    // `titan_app` via PgBouncer — ver packages/db/src/client.ts. Duas connection strings
+    // distintas de propósito: DATABASE_ADMIN_URL aqui, DATABASE_URL no client de runtime.
+    url:
+      process.env.DATABASE_ADMIN_URL ?? "postgresql://titan:titan_dev_only@localhost:5432/titan_dev",
   },
 });

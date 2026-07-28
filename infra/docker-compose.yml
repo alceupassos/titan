@@ -5,9 +5,16 @@ services:
     image: postgres:17
     restart: unless-stopped
     environment:
+      # `titan` (POSTGRES_USER da imagem oficial) é sempre superusuário — reservado para
+      # bootstrap/migrations administrativas, NUNCA usado pela aplicação (achado F-1 da
+      # auditoria de segurança de F0: FORCE ROW LEVEL SECURITY não vale para superusuário,
+      # então conectar como `titan` no dia a dia deixaria RLS inerte).
       POSTGRES_USER: titan
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-titan_dev_only}
       POSTGRES_DB: titan_dev
+      # Papel não-superusuário que a aplicação/PgBouncer usam de fato — criado por
+      # infra/postgres/init/01-app-role.sh no bootstrap do container.
+      TITAN_APP_PASSWORD: ${TITAN_APP_PASSWORD:-titan_app_dev_only}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
@@ -29,16 +36,24 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://titan:${POSTGRES_PASSWORD:-titan_dev_only}@postgres:5432/titan_dev
+      # DATABASE_URL define o backend para onde o PgBouncer encaminha (host/porta/db) e nunca
+      # aponta para `titan` (superusuário) — só `titan_app`. A AUTENTICAÇÃO real de quem conecta
+      # no PgBouncer vem do userlist.txt montado abaixo, não deste env var: o entrypoint do
+      # edoburu/pgbouncer só ESCREVE em userlist.txt se ele já existir E o usuário ainda não
+      # estiver presente — sem o mount, o arquivo não existe e nada é escrito, e a autenticação
+      # falharia silenciosamente. Por isso userlist.txt vem pré-computado e commitado (senha de
+      # dev fixa, mesmo padrão já usado em POSTGRES_PASSWORD — nunca um segredo de produção).
+      DATABASE_URL: postgres://titan_app:${TITAN_APP_PASSWORD:-titan_app_dev_only}@postgres:5432/titan_dev
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 200
       DEFAULT_POOL_SIZE: 10
     volumes:
       - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
     ports:
       - "127.0.0.1:6432:6432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U titan"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U titan_app"]
       interval: 5s
       timeout: 5s
       retries: 10

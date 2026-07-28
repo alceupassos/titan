@@ -40,9 +40,6 @@ export type AppAbility = MongoAbility<[Action, Subject]>;
 export function defineAbilityFor(role: Role): AppAbility {
   const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
-  // I10 — regra absoluta, antes de qualquer regra por papel: ninguém exclui evidência.
-  cannot("delete", "evidence").because("I10 — evidência nunca é excluída, nenhum papel, nenhuma condição.");
-
   switch (role) {
     case "titan.owner":
       can("read", "all");
@@ -86,6 +83,16 @@ export function defineAbilityFor(role: Role): AppAbility {
       can(["read", "update"], "reservation"); // só a própria — filtrado por reservation_id
       break;
   }
+
+  // I10 — regra absoluta, DEPOIS de todas as regras por papel: ninguém exclui evidência.
+  // CASL resolve por REGRA MAIS RECENTE VENCE — declarar isto ANTES do switch (como na versão
+  // original) deixa a garantia estrutural às cegas de qualquer `can("delete", "all")` que um
+  // papel futuro venha a conceder (achado F-2/FALHA-D da auditoria de segurança da Fase 0: um
+  // probe direto no @casl/ability confirmou que a ordem original permitia `delete` em `evidence`
+  // assim que QUALQUER papel ganhasse "delete" sobre "all"). Aqui, por vir por último, nenhuma
+  // regra futura pode revogá-la — é a diferença entre a invariante valer "por acidente" (porque
+  // nenhum papel hoje pede delete) e valer "estruturalmente".
+  cannot("delete", "evidence").because("I10 — evidência nunca é excluída, nenhum papel, nenhuma condição.");
 
   return build();
 }

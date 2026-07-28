@@ -2,14 +2,13 @@
   "permissions": {
     "deny": [
       "Read(./.env)",
-      "Read(./.env.*)",
+      "Read(./.env.local)",
+      "Read(./.env.production)",
+      "Read(./.env.production.local)",
       "Read(**/*.pfx)",
       "Read(**/*.p12)",
       "Bash(rm -rf*)",
-      "Bash(git push --force*)",
-      "Bash(*DELETE FROM evidence*)",
-      "Bash(*DROP TABLE*)",
-      "Bash(*psql*prod*)"
+      "Bash(git push --force*)"
     ],
     "ask": [
       "Bash(git push*)",
@@ -27,19 +26,16 @@
           { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-applied-migration.mjs\"" },
           { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-evidence-deletion.mjs\"" },
           { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-ledger-mutation.mjs\"" },
-          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-hardcoded-tax.mjs\"" }
+          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-hardcoded-tax.mjs\"" },
+          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-secrets.mjs\"" }
         ]
       },
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-evidence-deletion.mjs\"" }
-        ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-secrets.mjs\"" }
+          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-evidence-deletion.mjs\"" },
+          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-ledger-mutation.mjs\"" },
+          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/block-dangerous-bash.mjs\"" }
         ]
       }
     ],
