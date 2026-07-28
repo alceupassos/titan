@@ -4,5 +4,20 @@
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
-  "description": "Runtime de agentes, ferramentas, prompts versionados, evals (Concierge/Sales/Risk/Revenue/Operations/...). Escopo: Fase 10 (docs/roadmap.md)."
+  "types": "./src/index.ts",
+  "description": "Runtime de agentes, ferramentas, prompts versionados, evals (Concierge/Sales/Risk/Revenue/Operations/...). Fase 10 (docs/roadmap.md) — plano Plataforma do ADR-0010 (nunca Hermes/OpenClaw, que ficam no plano Operador, fora deste pacote).",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@titan/domain": "workspace:*",
+    "@titan/money": "workspace:*",
+    "@titan/dates": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "typescript": "^5.7.0"
+  }
 }

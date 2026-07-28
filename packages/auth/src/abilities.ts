@@ -113,6 +113,25 @@ export type Subject =
   // sinalização de possível reuso de foto, `flagSuspiciousCompletions`, nunca apaga/edita um
   // registro já gravado — só sinaliza para revisão humana).
   | "task_completion_record"
+  // Fase 10, Passo 4b (docs/fase-atual.md): console de automação
+  // (apps/console/app/(staff)/automacao) — ligar/desligar um agente
+  // (`toggleAgentKillSwitchAction`, UPSERT em `agent_kill_switches`) é a AÇÃO ESTRUTURAL do
+  // guardrail #10 do ADR-0009 ("kill switch = revogar o token MCP da instância" — aqui, a
+  // configuração corrente que a Fase 10b/`packages/agents` lê antes de aceitar rodar uma
+  // conversa). Subject dedicado em vez de reusar "pricing_snapshot"/"channel_sync": a decisão
+  // aqui é sobre O AGENTE em si (ligado/desligado), não sobre uma proposta/execução individual
+  // que ele produz — mesmo raciocínio de "channel_sync" (kill switch por canal, Fase 3) aplicado
+  // a agente. Nunca "delete"/"approve": é uma configuração corrente de dois estados, não uma
+  // fila de decisão.
+  | "agent_kill_switch"
+  // Fase 10, Passo 5 (docs/fase-atual.md): rodar uma conversa do Concierge a partir do cockpit
+  // (`runConciergeConversationAction`) — cria `agent_conversations`/`agent_traces` reais. Subject
+  // dedicado (não "agent_kill_switch"): a decisão aqui é sobre EXECUTAR uma conversa (ainda que em
+  // ambiente de teste/demo dentro do cockpit), distinta de ligar/desligar o agente. "create" cobre
+  // iniciar a conversa; nunca "approve"/"delete" — a consequência financeira/fiscal eventual que
+  // o Concierge propõe já é decidida pela fila de `/aprovacoes` (approval_request tipo
+  // "agent_action"), nunca por esta ability.
+  | "agent_conversation"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -251,6 +270,15 @@ export function defineAbilityFor(role: Role): AppAbility {
       // — só "read"/"create", nunca "update"/"delete" (ver comentário de justificativa do subject
       // "task_completion_record" acima).
       can(["read", "create"], "task_completion_record");
+      // Fase 10, Passo 4b: ligar/desligar um agente (kill switch, ADR-0009 guardrail #10) é
+      // operação do turno — mesmo raciocínio já usado para "channel_sync" (kill switch por canal,
+      // Fase 3): quem monitora o operacional precisa reagir rápido, sem esperar uma segunda
+      // aprovação formal da fila de /aprovacoes.
+      can(["read", "update"], "agent_kill_switch");
+      // Fase 10, Passo 5: rodar uma conversa do Concierge a partir do cockpit — "create" cobre
+      // iniciar a conversa (grava agent_conversations/agent_traces); a consequência financeira/
+      // fiscal eventual continua decidida só pela fila de /aprovacoes (agent_action), nunca aqui.
+      can(["read", "create"], "agent_conversation");
       break;
     case "titan.support":
       can(["read", "update"], "reservation"); // até alçada — limite real vem de docs/decisoes-de-negocio.md #5

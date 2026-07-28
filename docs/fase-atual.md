@@ -1,12 +1,13 @@
 # Estado do trabalho
 
-**Fase atual:** Fase 9 (Pessoas e Campo) — **todos os 5 passos do plano aprovado concluídos**:
-`workforce/` (cadastro, escala, custódia de acesso com cadeia hash-encadeada, desligamento com
-revogação automática provada por teste, produtividade com trava anti-gaming), migration 0011,
-scaffold real do app de campo (Expo) consumindo Route Handlers reais em `apps/console/app/api/
-field/**`, os 2 itens do portão de saída provados por teste (ver seção "Fase 9 — Pessoas e Campo"
-abaixo). Fases 0-8 seguem fechadas como já registrado (commit `24d41c6`, push para
-`https://github.com/alceupassos/titan`).
+**Fase atual:** Fase 10 (Agentes) — **última fase do roadmap, todos os 5 passos concluídos**:
+`packages/agents` (porta de modelo + adapter determinístico, os 12 guardrails do ADR-0009 como
+predicados testáveis, catálogo de ferramentas MCP versionado, custo por conversa, golden-set e
+corpus de injeção), migration 0012, `titan-mcp-prod` real ativando `agent_action` pela primeira
+vez, console de automação real, `runConciergeConversationAction` orquestrando tudo com kill
+switch — os 3 itens do portão de saída provados por teste (ver seção "Fase 10 — Agentes" abaixo).
+**Isto fecha o roadmap completo F0-F10.** Fases 0-9 seguem fechadas como já registrado (commit
+`e49f456`, push para `https://github.com/alceupassos/titan`).
 
 **Gap conhecido 1:** VPS Contabo real ainda não provisionada. "Deploy sem downtime" e
 "restauração de backup cronometrada" têm scripts reais que rodam contra Docker Compose local —
@@ -1026,5 +1027,112 @@ monorepo, `@titan/field` incluso; `pnpm turbo run test` com todos os testes pass
 mais os já existentes); `next build` real de `apps/console` sem regressão (36 rotas). Nenhuma
 migration já commitada foi alterada.
 
-**Próximo passo:** commit/push, depois plan mode para a Fase 10 (Agentes) — última fase do
-roadmap.
+**Próximo passo (histórico):** commit/push, depois plan mode para a Fase 10 (Agentes) — última
+fase do roadmap; ver seção seguinte para o resultado.
+
+## Fase 10 — Agentes (MCP, Concierge N1, Hermes no plano operador) — FECHA O ROADMAP
+
+Plano aprovado em plan mode. Última fase do roadmap — sem pergunta de negócio bloqueando o
+portão; única dependência listada era "continuidade do Nous Research (Hermes) — monitorar", risco
+de fornecedor, não decisão a responder. **Decisões arquiteturais já tomadas na Rodada 0, só
+implementadas aqui**: `docs/adr/0010-hermes-openclaw-vs-runtime-proprio.md` (dois planos —
+Operador com Hermes/OpenClaw read-only, Plataforma com runtime próprio `packages/agents`, único
+caminho entre eles é o MCP) e `docs/adr/0009-hardening-agentes.md` (12 guardrails como código —
+guardrail #1, "instância com conteúdo não confiável nunca tem ferramenta de escrita", é a defesa
+estrutural contra injeção de prompt).
+
+**Faixas paralelas autorizadas pelo roadmap:** "Catálogo `titan-mcp` · Concierge · evals · console
+de automação · hardening do Hermes" — 5 nominalmente. **Desvio deliberado**: Concierge/evals/
+hardening do Hermes são mutuamente dependentes (mesmo padrão "núcleo esboçado serial, faixas
+independentes em paralelo" já usado na Fase 8) — Passo 1 construiu o núcleo inteiro serial, e o
+Passo 4 disparou só as 2 faixas genuinamente independentes (catálogo MCP prod; console de
+automação), nunca as 5 ao mesmo tempo — mesma lição da Fase 9 (3 faixas simultâneas estouraram o
+limite de sessão da API sem progresso real).
+
+**Escopo deliberadamente cortado nesta fase** (seção 9.12 é a mais arquiteturalmente pesada do
+prompt único — cortar é obrigatório, mesmo padrão de todas as fases anteriores): sem chamada real
+a provedor de LLM (`AgentModelProvider` é porta real, único adapter é `RuleBasedModelProvider`
+determinístico por palavra-chave); sem RAG com embeddings/vector DB (busca seria por palavra-
+chave, não implementada nesta fase); sem Hermes/OpenClaw real instalado (hardening produz só as
+funções de guarda, nunca integração com o processo real); sem promoção automática de autonomia
+N0→N3 (config manual); sem CI real rodando golden-set a cada mudança (prova via Vitest
+determinístico); preço por token é tabela de exemplo, pendente de confirmação como toda tabela
+fiscal desde a Fase 4.
+
+**Passo 1 — `packages/agents/src/`:** `model-provider.ts` (`AgentModelProvider` porta +
+`RuleBasedModelProvider` — classificação de intenção por palavra-chave, 6 intenções + "unknown"),
+`guardrails.ts` (5 dos 12 guardrails do ADR-0009 como predicados puros testáveis — os demais são
+organizacionais/infra, sem lógica verificável em código), `mcp-tool-catalog.ts` (tabela
+versionada: 3 ferramentas de leitura, 3 de escrita estreita, 10 bloqueadas — nunca implementadas
+para nenhum agente), `cost.ts` (`computeConversationCostCents`, mesma disciplina de
+`VendorRetentionRule`), `golden-set.ts` (`runGoldenSet` — prova o item 1 do portão), 
+`injection-corpus.ts` (`runInjectionCorpus` — prova o item 3, usando o guardrail estrutural real,
+nunca confiando no modelo). 29 testes novos.
+
+**Passo 2 — `packages/db`:** migration `0012_agents.sql` — `agent_conversations`,
+`agent_traces` (append-only real — `GRANT SELECT, INSERT` + `REVOKE UPDATE, DELETE, TRUNCATE`,
+mesmo padrão de `evidence_log`), `golden_set_runs` (append-only, histórico auditável de acurácia),
+`agent_kill_switches` (UPSERT, configuração corrente, mesmo padrão de
+`pricing_autonomy_configs`). RLS+grants nas 4 tabelas; journal/snapshot via `drizzle-kit generate`
+real — 13 migrations (0000-0012) descobertas em ordem.
+
+**Passo 3 — `packages/contracts`:** `packages/contracts/src/agents.ts` —
+`RunConciergeConversationSchema`, `ToggleAgentKillSwitchSchema`. Decisão de reuso: a decisão sobre
+uma `approval_request` tipo `agent_action` reusa `ApprovalDecisionSchema` já existente desde a
+Fase 2, nunca um schema paralelo.
+
+**Passo 4 (2 faixas paralelas, reduzido de 5 — ver "Faixas paralelas" acima):**
+- **4a — Catálogo `titan-mcp-prod`** (`apps/mcp/src/prod-server.ts` + `prod-repo.ts`, novo
+  entrypoint no mesmo pacote): expõe as 6 ferramentas de `EXPOSED_TOOL_CATALOG` como ferramentas
+  MCP reais, cada uma delegando para uma query/Server Action já real do cockpit (nunca uma segunda
+  implementação) — `tenantId` sempre parâmetro explícito (sem sessão web neste processo, mesmo
+  padrão de `apps/worker/src/channel-sync-repo.ts`). **`create_approval_request` é a função que
+  ativa `ApprovalType.agent_action` de verdade pela primeira vez no monorepo**, inserindo com
+  `requestedBy: "agent:concierge v0.1"` na fila de `/aprovacoes` já existente desde a Fase 2. Uma
+  checagem de boot (`assertRegisteredToolsMatchCatalog`) falha ruidosamente se o servidor divergir
+  do catálogo de `@titan/agents`.
+- **4b — Console de automação** (`apps/console/app/(staff)/automacao`): KPIs reais (conversas
+  hoje, custo acumulado, acurácia do golden-set mais recente, ações de agente pendentes), fila
+  resumida de `approval_requests` tipo `agent_action` linkando para `/aprovacoes` (nunca duplica a
+  fila real), feed de trace, painel estático dos 12 guardrails do ADR-0009 marcados "ativo", kill
+  switch por agente (`toggleAgentKillSwitchAction`). `packages/auth/src/abilities.ts` ganhou
+  subject `"agent_kill_switch"` (`titan.operations`: read/update).
+
+**Passo 5 — integração final:** `runConciergeConversationAction`
+(`apps/console/app/(staff)/automacao/actions.ts`) — checa `agent_kill_switches` ANTES de
+responder, roda `RuleBasedModelProvider`, aplica o guardrail #1
+(`assertNoWriteToolForUntrustedContent`) antes de aceitar qualquer ferramenta pedida pelo modelo,
+grava `agent_conversations`+`agent_traces` na mesma transação `withTenant`. `packages/auth`
+ganhou subject `"agent_conversation"` (`titan.operations`: read/create). Teste de integração
+(`packages/agents/src/concierge-integration.test.ts`) prova os 3 itens do portão de saída JUNTOS
+sobre o MESMO `RuleBasedModelProvider` usado em produção — 4 testes novos (233 no total do pacote
+domain via workforce + 33 no pacote agents novo).
+
+**Dívida técnica nova, documentada e não escondida:**
+- Sem adapter de LLM real — `RuleBasedModelProvider` é heurística de palavra-chave, nunca NLU.
+- Sem RAG/embeddings sobre manual da casa — busca por palavra-chave fica para quando houver
+  serviço de embeddings configurado.
+- Hermes/OpenClaw nunca instalados nesta máquina — hardening produz só as funções de guarda,
+  nunca integração real com o processo.
+- `draft_message` (titan-mcp-prod) não persiste rascunho em lugar nenhum — retorna template fixo,
+  documentado que um LLM real substituiria isso.
+- `reservation_summary` mascara o único identificador externo presente no schema
+  (`externalRef`) — `reservations` ainda não tem coluna de hóspede (dívida já registrada desde a
+  Fase 2).
+- Preço por token (`cost.ts`) é tabela de exemplo — pendente de confirmação antes de produção
+  real, mesma ressalva de toda tabela fiscal desde a Fase 4.
+- Sem CI real rodando o golden-set a cada mudança de prompt — prova via Vitest determinístico
+  nesta sessão.
+- Nenhuma Server Action/ferramenta MCP desta fase foi exercitada ponta a ponta contra um
+  Postgres vivo real (Gap conhecido 2, Docker sem daemon nesta máquina).
+
+**Verificação real feita nesta sessão:** `pnpm turbo run typecheck` limpo nos 18 pacotes do
+monorepo (`@titan/agents` novo); `pnpm turbo run test` com todos os testes passando (232 domain +
+33 agents, mais os já existentes); `next build` real de `apps/console` sem regressão (36 rotas,
+incluindo `/automacao` real). Nenhuma migration já commitada foi alterada.
+
+**Próximo passo:** commit/push. **Não há próxima fase — o roadmap F0-F10 está completo.**
+Trabalho futuro (fora do escopo de fase): certificações contínuas de canal (Booking/Expedia/
+Airbnb, já em andamento paralelo desde a Fase 3), respostas formais de contador/jurídico às
+ressalvas documentadas em cada fase fiscal/trabalhista, provisionamento de infraestrutura real
+(VPS, Docker, contas de gateway/fiscal/LLM) quando o negócio decidir ir a produção.

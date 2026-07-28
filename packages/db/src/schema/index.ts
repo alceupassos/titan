@@ -34,3 +34,7 @@ export * from "./workforce-member";
 export * from "./access-credential-event";
 export * from "./shift-assignment";
 export * from "./task-completion-record";
+export * from "./agent-conversation";
+export * from "./agent-trace";
+export * from "./golden-set-run";
+export * from "./agent-kill-switch";
