@@ -10,6 +10,7 @@ export const staffNavSections: SidebarSection[] = [
     items: [
       { href: "/", label: "Dia" },
       { href: "/calendario", label: "Calendário" },
+      { href: "/unidades", label: "Unidades" },
       { href: "/reservas", label: "Reservas" },
       { href: "/limpeza", label: "Limpeza" },
       { href: "/limpeza/checklists", label: "Checklists" },

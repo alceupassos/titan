@@ -12,6 +12,10 @@ export { DensityToggle } from "./components/DensityToggle";
 export type { DensityToggleProps, Density } from "./components/DensityToggle";
 export { AppShell } from "./components/AppShell";
 export type { AppShellProps } from "./components/AppShell";
+export { Sparkline } from "./components/Sparkline";
+export type { SparklineProps, SparklineVariant } from "./components/Sparkline";
+export { ComparisonBarChart } from "./components/ComparisonBarChart";
+export type { ComparisonBarChartProps, ComparisonBarChartItem } from "./components/ComparisonBarChart";
 export { TapeChart } from "./components/TapeChart";
 export type {
   TapeChartProps,
