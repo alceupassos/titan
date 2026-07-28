@@ -44,20 +44,31 @@ precisa de confirmação formal do contador/jurídico antes de produção real.
 **Pergunta:** comissão, amenities, material de limpeza, enxoval, manutenção até que valor,
 depreciação — quem paga cada item?
 
-**Resposta:** _pendente_
-
-**Default assumido enquanto pendente:** nenhum — é a especificação literal do extrato de repasse;
-sem isso, `ledger/` não fecha o portão da Fase 5.
+**Resposta:** confirmada, em duas partes — respondida ao abrir a Fase 5 (docs/roadmap.md):
+1. **Comissão:** percentual fixo sobre a receita bruta de hospedagem (não sobre receita líquida
+   pós-taxas de canal/gateway) — modelo mais simples de auditar no ledger.
+2. **Itens operacionais** (material de limpeza, enxoval, manutenção, amenities): **configurável
+   por contrato de proprietário**, não um modelo único global. Cada proprietário pode ter um dos
+   dois arranjos: (a) Titan paga tudo, embutido na comissão — extrato simples, sem rateio linha a
+   linha; ou (b) proprietário paga, Titan rateia e desconta do repasse — exige o item completo
+   como linha de despesa no extrato individual daquele proprietário. **Implica que o modelo de
+   dados de `packages/ledger`/`administration_contract` precisa de um campo por proprietário
+   (ou por unidade) que escolhe entre os dois arranjos, nunca uma constante global de código.**
 
 ## 5. Alçadas de aprovação
 
 **Pergunta:** valores-limite para compra sem cotação, OS sem orçamento prévio, reembolso sem
 step-up, repasse com dupla aprovação, ajuste de estoque.
 
-**Resposta:** _pendente_
+**Resposta:** parcialmente confirmada, ao abrir a Fase 5:
+- **Repasse com dupla aprovação:** acima de **R$ 5.000** por lote/repasse individual exige duas
+  aprovações distintas com step-up (Camada 2/3 da seção 9.4.1).
+- **Compra/OS sem cotação prévia:** até **R$ 100** — abaixo disso, equipe de campo/prestador pode
+  agir sem esperar aprovação formal.
 
-**Default assumido enquanto pendente:** limites conservadores de exemplo (a definir em conjunto
-com o usuário antes da Fase 0 fechar `packages/approvals`).
+**Ainda pendente:** limite de reembolso sem step-up, limite de ajuste de estoque sem aprovação —
+usar limites conservadores de exemplo até serem confirmados, documentados explicitamente como
+não confirmados em qualquer lugar do código/UI que os exiba.
 
 ## 6. Contrato existente com OTA/agregador
 

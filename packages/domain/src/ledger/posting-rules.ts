@@ -161,3 +161,52 @@ export function entriesForRefund(params: EntriesForRefundParams): LedgerLine[] {
     },
   ];
 }
+
+export interface EntriesForPayoutSettlementParams {
+  /** Opcional — repasse é apurado por período/proprietário (ver `packages/domain/src/
+   * administration/payout-extract.ts`), não por reserva individual. Presente só quando o
+   * chamador quiser rastrear a baixa de repasse até uma reserva específica (ex.: operação com
+   * proprietário de uma única unidade/reserva); em repasses que consolidam várias reservas do
+   * período, deixe indefinido — não force um id arbitrário só para preencher o campo. */
+  readonly reservationId?: string;
+  /** Conta passivo — "repasse a proprietário a pagar". */
+  readonly payoutLiabilityAccountId: string;
+  readonly cashAccountId: string;
+  readonly netPayoutCents: Cents;
+  readonly currency: CurrencyCode;
+}
+
+/**
+ * Baixa (settlement) do repasse ao proprietário: débito no passivo "repasse a proprietário"
+ * (baixa a obrigação), crédito em caixa (dinheiro saindo da conta da Titan). Fecha por
+ * construção: as duas linhas têm o MESMO valor (`netPayoutCents`) — `postDoubleEntry` é quem
+ * prova isso no teste.
+ *
+ * Fronteira de escopo (documentada explicitamente, não escondida): esta função assume que o
+ * passivo "repasse a proprietário" JÁ FOI PROVISIONADO em algum lançamento anterior — o momento
+ * em que a comissão da Titan é calculada e o líquido devido ao proprietário nasce como obrigação
+ * (`credit` em `payoutLiabilityAccountId`, contrapartida do reconhecimento de receita/comissão).
+ * Modelar essa provisão (a partir de `computePayoutExtract`) NÃO é escopo deste Passo 1 — fica
+ * para quando o worker/fila de repasse (Fase 5, passo posterior) precisar dela de verdade. Esta
+ * função cobre só a ponta final: o dinheiro efetivamente saindo quando o repasse é pago,
+ * consistente com a dupla aprovação e o step-up acima de R$ 5.000
+ * (docs/decisoes-de-negocio.md, pergunta 5; `packages/domain/src/approval/step-up.ts`).
+ */
+export function entriesForPayoutSettlement(params: EntriesForPayoutSettlementParams): LedgerLine[] {
+  return [
+    {
+      accountId: params.payoutLiabilityAccountId,
+      direction: "debit",
+      amountCents: params.netPayoutCents,
+      currency: params.currency,
+      ...(params.reservationId !== undefined ? { reservationId: params.reservationId } : {}),
+    },
+    {
+      accountId: params.cashAccountId,
+      direction: "credit",
+      amountCents: params.netPayoutCents,
+      currency: params.currency,
+      ...(params.reservationId !== undefined ? { reservationId: params.reservationId } : {}),
+    },
+  ];
+}

@@ -32,6 +32,7 @@ export const staffNavSections: SidebarSection[] = [
     title: "Financeiro",
     items: [
       { href: "/financeiro", label: "Financeiro" },
+      { href: "/financeiro/dre", label: "DRE" },
       { href: "/fiscal", label: "Fiscal" },
       { href: "/repasses", label: "Repasses" },
       { href: "/aprovacoes", label: "Aprovações" },

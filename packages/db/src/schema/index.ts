@@ -14,3 +14,7 @@ export * from "./channel-sync-log";
 export * from "./divergence";
 export * from "./tax-rule";
 export * from "./fiscal-document";
+export * from "./administration-contract";
+export * from "./vendor";
+export * from "./accounts-payable";
+export * from "./payout-batch";

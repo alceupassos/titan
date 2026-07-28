@@ -4,6 +4,7 @@ import {
   OriginalLedgerEntryNotFoundError,
   entriesForChannelCommission,
   entriesForPaymentCaptured,
+  entriesForPayoutSettlement,
   entriesForRefund,
 } from "./posting-rules";
 
@@ -141,5 +142,52 @@ describe("entriesForChannelCommission — I1/9.2, reserva externa (collected by 
     expect(revenueLine.direction).toBe("credit");
     expect(revenueLine.amountCents).toBe(50000);
     expect(entries.every((e) => e.reservationId === "res-airbnb-1")).toBe(true);
+  });
+});
+
+describe("entriesForPayoutSettlement — Fase 5, baixa do repasse ao proprietário", () => {
+  it("gera linhas que fecham (débito no passivo == crédito em caixa)", () => {
+    const lines = entriesForPayoutSettlement({
+      payoutLiabilityAccountId: "acc-payout-liability",
+      cashAccountId: "acc-cash",
+      netPayoutCents: 480000,
+      currency: "BRL",
+    });
+
+    // Prova real de que fecha: roda através de postDoubleEntry, que rejeitaria se desbalanceado.
+    const entries = postDoubleEntry({
+      tenantId: "tenant-1",
+      lines,
+      createdAtEpochMs: 0,
+      idGenerator: idGen("le-payout"),
+    });
+
+    expect(entries).toHaveLength(2);
+    const liabilityLine = entries.find((e) => e.accountId === "acc-payout-liability")!;
+    const cashLine = entries.find((e) => e.accountId === "acc-cash")!;
+
+    expect(liabilityLine.direction).toBe("debit");
+    expect(liabilityLine.amountCents).toBe(480000);
+    expect(cashLine.direction).toBe("credit");
+    expect(cashLine.amountCents).toBe(480000);
+  });
+
+  it("propaga reservationId opcional quando fornecido, e omite quando ausente", () => {
+    const withReservation = entriesForPayoutSettlement({
+      reservationId: "res-1",
+      payoutLiabilityAccountId: "acc-payout-liability",
+      cashAccountId: "acc-cash",
+      netPayoutCents: 10000,
+      currency: "BRL",
+    });
+    expect(withReservation.every((line) => line.reservationId === "res-1")).toBe(true);
+
+    const withoutReservation = entriesForPayoutSettlement({
+      payoutLiabilityAccountId: "acc-payout-liability",
+      cashAccountId: "acc-cash",
+      netPayoutCents: 10000,
+      currency: "BRL",
+    });
+    expect(withoutReservation.every((line) => line.reservationId === undefined)).toBe(true);
   });
 });

@@ -43,6 +43,13 @@
       "when": 1785236749957,
       "tag": "0005_fiscal",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785239768650,
+      "tag": "0006_financeiro",
+      "breakpoints": true
     }
   ]
 }

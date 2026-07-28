@@ -29,6 +29,12 @@ export type Subject =
   | "user_role"
   | "bank_account"
   | "approval_request"
+  // Fase 5, Passo 4a (docs/fase-atual.md): contas a pagar (apps/console/app/(staff)/financeiro) —
+  // subject próprio em vez de reusar "ledger" porque a decisão aqui é sobre a OBRIGAÇÃO perante o
+  // fornecedor (criar/pagar uma linha de accounts_payable), não sobre o lançamento contábil em si
+  // (que continua sendo postado como "ledger" pela mesma Server Action, sem checagem CASL
+  // separada — mesmo espírito de "approve"/"payout_batch" já existente abaixo).
+  | "accounts_payable"
   // Fase 3, Passo 4d (docs/fase-atual.md): cockpit de distribuição (apps/console/app/(staff)/
   // distribuicao) — corrigir divergência de reconciliação, reprocessar item da DLQ e o kill
   // switch manual por canal (ADR-0020, mitigação exigida). Um subject dedicado em vez de reusar
@@ -80,6 +86,13 @@ export function defineAbilityFor(role: Role): AppAbility {
       // não acrescentariam garantia extra aqui (a distinção real entre as duas operações já vem do
       // Zod na borda + do filtro de status na própria Server Action, não de uma ability separada).
       can("approve", "fiscal_document");
+      // Fase 5, Passo 4a: fluxo de contas a pagar (AP) — submeter despesa de fornecedor
+      // (`submitAccountsPayableAction`) é "create"; marcar como paga (`payAccountsPayableAction`),
+      // que só executa depois que a `approval_request` vinculada já foi decidida pela fila
+      // existente (/aprovacoes), é "approve" — mesma convenção de "approve"/"payout_batch" e
+      // "approve"/"fiscal_document" acima: uma única ability cobrindo a decisão consequente, sem
+      // inventar um verbo novo ("pay") que não acrescentaria garantia extra.
+      can(["read", "create", "approve"], "accounts_payable");
       cannot("update", "rate"); // finance não altera tarifa — seção 7.1
       break;
     case "titan.revenue":

@@ -4,3 +4,4 @@ export * from "./payment";
 export * from "./approval";
 export * from "./distribution";
 export * from "./fiscal";
+export * from "./financial";

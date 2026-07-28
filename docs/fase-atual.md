@@ -1,12 +1,12 @@
 # Estado do trabalho
 
-**Fase atual:** Fase 4 (Fiscal) — **todos os 6 passos do plano aprovado concluídos**: domínio
-fiscal (tax_rules versionada, idempotência forte via chave natural), migration 0005, contratos
-Zod, adapter Focus NFe + worker de emissão assíncrona disparada por captura de pagamento em
-faixas paralelas, fila real de `/fiscal`, cofre WORM (implementação local de dev), e integração
-final (reconciliação do mirror local do worker com o `FiscalGateway` real, conectado ao
-bootstrap). Ver seção "Fase 4 — Fiscal" abaixo para o detalhe. Fases 0-3 seguem fechadas como já
-registrado (commit `30ce0eb`, push para `https://github.com/alceupassos/titan`).
+**Fase atual:** Fase 5 (Financeiro) — **todos os 5 passos do plano aprovado concluídos**:
+contrato de administração configurável por proprietário, extrato de repasse, step-up vinculado a
+hash de payload, migration 0006, contratos Zod, AP/AR + repasse com dupla aprovação + portal do
+proprietário + DRE em faixas paralelas, com o teste crítico do portão de saída (DRE fecha ao
+centavo vs. extrato simulado) passando. Ver seção "Fase 5 — Financeiro" abaixo para o detalhe.
+Fases 0-4 seguem fechadas como já registrado (commit `e8c34b6`, push para
+`https://github.com/alceupassos/titan`).
 
 **Gap conhecido 1:** VPS Contabo real ainda não provisionada. "Deploy sem downtime" e
 "restauração de backup cronometrada" têm scripts reais que rodam contra Docker Compose local —
@@ -448,6 +448,92 @@ tratado como falha de rede/retry) quando não estão.
 fiscal, mais os já existentes); `next build` real de `apps/console` sem regressão (rota `/fiscal`
 real, 28 rotas no total). Nenhuma migration já commitada foi alterada.
 
-**Próximo passo:** commit/push, depois plan mode para a Fase 5 (Financeiro) — **depende da
-pergunta 4 de `docs/decisoes-de-negocio.md`** (contrato de administração: quem paga o quê —
-comissão, amenities, material de limpeza, enxoval, manutenção, depreciação), ainda pendente.
+**Próximo passo (histórico):** plan mode para a Fase 5 — as perguntas 4 e 5 de
+`docs/decisoes-de-negocio.md` foram respondidas ao abrir a fase; ver seção seguinte para o
+resultado.
+
+## Fase 5 — Financeiro (AP/AR, repasse com dupla aprovação, portal do proprietário, DRE)
+
+Plano aprovado em plan mode. **Decisões de negócio confirmadas nesta fase** (perguntas 4-5 de
+`docs/decisoes-de-negocio.md`, agora respondidas):
+1. **Contrato de administração:** comissão sempre percentual fixo sobre receita BRUTA de
+   hospedagem (não líquida). Itens operacionais (limpeza/enxoval/manutenção/amenities) são
+   configuráveis **por proprietário/unidade**, nunca um modelo único global: cada contrato
+   escolhe entre `titan_pays_all` (embutido na comissão) ou `owner_pays_itemized` (rateado e
+   descontado do repasse).
+2. **Alçadas de aprovação (parcial):** repasse acima de R$ 5.000 exige dupla aprovação com
+   step-up; compra/OS até R$ 100 dispensa cotação prévia. Limite de reembolso sem step-up e de
+   ajuste de estoque continuam pendentes.
+
+**Passo 1 — `packages/domain`:** `packages/domain/src/administration/` — `AdministrationContract`
+(`commissionBasisPoints` inteiro, `itemPaymentModel`), `resolveAdministrationContractForDate`
+(mesmo padrão de `resolveTaxRuleForDate`), `computePayoutExtract` (ignora despesas itemizadas
+quando o contrato é `titan_pays_all`, nunca cobra o proprietário além do que o contrato dele
+autoriza). `packages/domain/src/ledger/posting-rules.ts` ganhou `entriesForPayoutSettlement`
+(baixa de passivo + saída de caixa). `packages/domain/src/approval/step-up.ts` — `buildStepUpChallenge`/
+`verifyStepUpChallenge` (Camada 3 da seção 9.4.1: desafio vinculado a hash do payload + nonce +
+expiração, nunca só "prova quem"). 19 testes novos (94 no total do pacote antes do Passo 4d).
+
+**Passo 2 — `packages/db`:** migration `0006_financeiro.sql` — `administration_contracts`,
+`vendors`, `accounts_payable` (reusa `approval_requests` tipo `purchase_order` já existente),
+`payout_batches` com **`CONSTRAINT payout_batches_maker_checker CHECK (approved_by IS NULL OR
+approved_by <> created_by)`** — Camada 2 da seção 9.4.1 aplicada como constraint de banco, literal
+ao exemplo da spec. RLS+grants; journal/snapshot via `drizzle-kit generate` — 7 migrations
+(0000-0006) descobertas em ordem.
+
+**Passo 3 — `packages/contracts`:** `SubmitAccountsPayableSchema`, `CreatePayoutBatchSchema`,
+`ApprovePayoutBatchSchema` (`stepUpToken` opcional, validado na Server Action, não só na borda
+Zod).
+
+**Passo 4 — 4 faixas paralelas:**
+- **4a — AP/AR (`(staff)/financeiro`):** fluxo vendor→invoice→`approval_requests` (`purchase_order`,
+  reusado)→pagamento→lançamento via `postDoubleEntry` inline. `packages/auth` ganhou subject
+  `"accounts_payable"` para `titan.finance`.
+- **4b — repasse (`(staff)/repasses`):** `createPayoutBatchAction`/`submitPayoutBatchForApprovalAction`/
+  `approvePayoutBatchAction`. Step-up com HMAC-SHA256 real (`node:crypto`), nonce/expiração
+  persistidos dentro de `approval_requests.impact` (jsonb, sem coluna própria). Maker-checker
+  verificado em código (comparação `session.userId !== createdBy`) ANTES de qualquer tentativa de
+  UPDATE — a CHECK do banco é o árbitro final, o erro de aplicação é só melhor UX.
+- **4c — portal do proprietário (`(owner)/portal`):** `requireOwnerSession()` (mesma dívida de
+  mapeamento usuário→papel da Fase 1, papel sempre `"owner"`), extratos reais mostrando despesas
+  itemizadas só quando o contrato da unidade é `owner_pays_itemized`.
+- **4d — DRE (`(staff)/financeiro/dre`, nova sub-rota):** `computeDreForPeriod` — soma
+  `ledger_entries` por conta/período, normalizando débito/crédito pelo sentido natural de cada
+  tipo de conta (receita cresce no crédito, despesa no débito). **Teste crítico do portão de
+  saída da fase**: cenário completo em memória (reserva→captura→provisão de repasse→baixa) produz
+  DRE que fecha exatamente contra o extrato calculado independentemente no teste (R$ 170,00
+  líquido de um cenário de R$ 1.000,00 de diária, 3% de taxa de gateway, 80% de repasse) — prova
+  direta de "DRE fecha ao centavo vs. extrato simulado".
+
+**Passo 5 — integração final:** `pnpm turbo run typecheck` limpo nos 17 pacotes; `pnpm turbo run
+test` com todos os testes passando (95 domain + 45 worker + 23 channels, mais os já existentes);
+`next build` real de `apps/console` sem regressão (29 rotas, incluindo `/financeiro`,
+`/financeiro/dre`, `/repasses`, `/portal/extratos`).
+
+**Dívida técnica nova, documentada e não escondida:**
+- `entriesForPayoutSettlement` cobre só a BAIXA do passivo de repasse — a PROVISÃO (quando a
+  comissão é calculada e o líquido devido nasce como obrigação) ainda não tem posting-rule
+  própria; o teste crítico do Passo 4d fez essa provisão manualmente para fins de prova, não é
+  código de produção ainda.
+- Sem tabela `ownership_share` (usuário→proprietário→unidade) — o portal do proprietário filtra
+  hoje só por `tenantId`, nunca "unidades deste proprietário específico" — bloqueante antes de
+  abrir a um proprietário real, documentado em `owner-session.ts`/`queries.ts`.
+- "Proprietários aguardando" no painel de repasses é uma aproximação por unidades distintas (sem
+  mapeamento unidade→proprietário ainda).
+- Sem envio real de PIX em lote — o lote é calculado, aprovado com dupla aprovação e step-up
+  (isso É o escopo real da fase), mas o envio ao banco fica marcado "pronto para envio", sem
+  adapter bancário real (fora do escopo, análogo a `packages/payments`/`packages/channels`).
+- OFX/CNAB, Open Finance, `settlement_batch` (conciliação de settlement por gateway) — não
+  implementados, sem conta bancária/relatório real nesta máquina para validar contra nada.
+- Relatórios além do DRE (aging, margem por canal, CAC, RevPAR/ADR/ocupação, GOP por unidade) —
+  fora do escopo do portão de saída desta fase.
+- Camadas 4-7 completas de `docs/adr/0005-orquestracao-de-pagamentos.md` (limites de velocidade,
+  carência de conta nova, titularidade de beneficiário, kill switch) — só Camadas 2/3 (maker-checker
+  + step-up) são o cerne real desta fase; as demais dependem de conta bancária real para ter
+  sentido.
+- Limite de reembolso sem step-up e de ajuste de estoque continuam pendentes (pergunta 5 de
+  `docs/decisoes-de-negocio.md`, parcial).
+
+**Próximo passo:** commit/push, depois plan mode para a Fase 6 (Limpeza e Evidência) —
+**bloqueada pela pergunta 3 de `docs/decisoes-de-negocio.md`** (vínculo da camareira: CLT, PJ ou
+terceirizada), ainda pendente.
