@@ -1,10 +1,16 @@
 # Titan Stay — contrato do repositório
 
-> Rodada 0 concluída. Este arquivo, `docs/invariantes.md`, `docs/anti-padroes.md`, `docs/adr/*`,
+## Idioma
+
+**Responda sempre em português.** O usuário é brasileiro e só quer respostas em pt-BR — nunca
+em inglês, nem em prosa dirigida a ele nem em texto visível a ele (incluindo prompts de
+subagentes que apareçam na tela). Código e identificadores continuam em inglês (ver Convenções
+duras abaixo) — a regra de idioma é sobre comunicação com o usuário, não sobre o código.
+
+> Rodada 0 e Fase 0 concluídas (ver `docs/fase-atual.md` para o estado corrente e a fase em
+> andamento). Este arquivo, `docs/invariantes.md`, `docs/anti-padroes.md`, `docs/adr/*`,
 > `docs/domain/*` e `docs/roadmap.md` são o entregável da Rodada 0 (ver `PROMPT_UNICO_Titan.md` /
-> `prompt.md`, seção 14). Nenhum código, migration, `.claude/agents/*` ou hook existe ainda —
-> isso pertence à Fase 0, que só abre depois do "ok" do usuário às perguntas de
-> `docs/decisoes-de-negocio.md`.
+> `prompt.md`, seção 14).
 
 ## Invariantes (leia antes de qualquer coisa)
 @docs/invariantes.md          # I1 a I10, com a camada onde cada uma é aplicada

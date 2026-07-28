@@ -10,13 +10,23 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@titan/contracts": "workspace:*",
+    "@titan/domain": "workspace:*",
+    "@titan/money": "workspace:*",
+    "@titan/dates": "workspace:*",
+    "@titan/db": "workspace:*",
+    "@titan/payments": "workspace:*",
+    "drizzle-orm": "0.45.2",
     "next": "16.2.1",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "tailwindcss": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.3"
   }
 }

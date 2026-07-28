@@ -15,6 +15,20 @@
       "when": 1785200604291,
       "tag": "0001_app_role_grants_and_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785203620144,
+      "tag": "0002_availability_rates_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785208277743,
+      "tag": "0003_ledger_approvals_payments",
+      "breakpoints": true
     }
   ]
 }

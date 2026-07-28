@@ -5,6 +5,14 @@
     "moduleResolution": "Bundler",
     "jsx": "preserve",
     "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    // Mesmo override de apps/console/tsconfig.json: este app roda client components de verdade
+    // (formulário de cotação/checkout com estado local) que usam window/document — sem
+    // "DOM"/"DOM.Iterable" aqui, `tsc --noEmit` falha nesses globais mesmo com código correto.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

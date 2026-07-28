@@ -4,5 +4,17 @@
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
-  "description": "Orquestração multi-gateway (Asaas, Stripe, Pagar.me, AbacatePay). Escopo: Fase 2 (docs/roadmap.md). Proprietário: adapter-builder, um por invocação."
+  "types": "./src/index.ts",
+  "description": "Orquestração multi-gateway (Asaas, Stripe, Pagar.me, AbacatePay). Escopo: Fase 2 (docs/roadmap.md). Proprietário: adapter-builder, um por invocação.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "stripe": "^17.5.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "typescript": "^5.7.0"
+  }
 }

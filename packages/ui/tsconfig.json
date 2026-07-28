@@ -3,7 +3,10 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    // Override do "lib": ["ES2022"] de tsconfig.base.json — `AppShell` (client component) usa
+    // `window`/localStorage; sem "DOM" aqui o `typecheck` deste pacote falha nesses globais.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": ["src"]
 }

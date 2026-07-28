@@ -1,11 +1,18 @@
-// Placeholder fino — o storefront real (busca, mapa, calendário, checkout) nasce na Fase 2
-// (docs/roadmap.md). Ganha PRODUCT.md/DESIGN.md próprio (registro brand) quando esse trabalho
-// começar; não reusar os tokens escuros do cockpit aqui.
+import { SearchForm } from "@/components/SearchForm";
+
 export default function Home() {
   return (
-    <main style={{ padding: "2rem", fontFamily: "system-ui" }}>
-      <h1>Titan Stay</h1>
-      <p>Storefront — em construção (Fase 2 do roadmap).</p>
-    </main>
+    <div className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
+      <h1 className="font-display text-4xl text-ink sm:text-5xl">
+        Sua próxima estadia, reservada direto com quem cuida dela.
+      </h1>
+      <p className="mt-4 max-w-xl text-lg text-ink-muted">
+        Unidades da Titan Empreendimentos, com cotação transparente e sem taxa de intermediação de
+        canal.
+      </p>
+      <div className="mt-10">
+        <SearchForm />
+      </div>
+    </div>
   );
 }

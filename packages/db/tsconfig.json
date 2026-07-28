@@ -3,5 +3,5 @@
   "compilerOptions": {
     "outDir": "./dist"
   },
-  "include": ["src", "test", "drizzle.config.ts"]
+  "include": ["src", "test", "seed", "drizzle.config.ts"]
 }

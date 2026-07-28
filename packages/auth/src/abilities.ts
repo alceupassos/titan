@@ -28,6 +28,7 @@ export type Subject =
   | "evidence"
   | "user_role"
   | "bank_account"
+  | "approval_request"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -49,6 +50,16 @@ export function defineAbilityFor(role: Role): AppAbility {
       can("read", ["ledger", "fiscal_document", "payout_batch"]);
       can(["create", "update"], ["ledger", "fiscal_document"]);
       can("approve", "payout_batch");
+      // Fase 2, Passo 4 (docs/fase-atual.md): fila central de aprovações
+      // (apps/console/app/(staff)/aprovacoes). "approve" cobre AMBAS as decisões possíveis sobre
+      // a fila (aprovar e rejeitar) — CASL só decide "este papel pode decidir sobre a fila?",
+      // nunca "qual das duas decisões". A regra de negócio real que distingue as duas ("rejeição
+      // exige comentário", seção 9.4.2) já é imposta pelo domínio
+      // (`rejectApproval`/`RejectionRequiresCommentError`) e pelo Zod na borda
+      // (`ApprovalDecisionSchema.refine`), não por uma ability CASL separada — duas abilities
+      // (`approve`/`reject`) não acrescentariam nenhuma garantia adicional aqui, só duplicariam a
+      // checagem. `titan.auditor` não precisa de regra extra: já tem `can("read","all")`.
+      can(["read", "approve"], "approval_request");
       cannot("update", "rate"); // finance não altera tarifa — seção 7.1
       break;
     case "titan.revenue":
@@ -57,6 +68,11 @@ export function defineAbilityFor(role: Role): AppAbility {
       break;
     case "titan.operations":
       can("read", "reservation");
+      // Fase 1, Passo 5 (docs/fase-atual.md): operations cotação/cria reserva a partir do
+      // cockpit (apps/console/app/(staff)/reservas/nova) — sem isto a Server Action de criação
+      // de reserva não teria nenhuma ability real de "create"/"update" para checar, e o pedido
+      // de sessão cairia sempre em "sem permissão" mesmo com sessão válida.
+      can(["create", "update"], "reservation");
       can("propose", "rate"); // dentro de faixa — execução real fica com agente/pricing-scientist
       break;
     case "titan.support":

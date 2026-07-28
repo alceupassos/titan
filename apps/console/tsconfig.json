@@ -5,6 +5,15 @@
     "moduleResolution": "Bundler",
     "jsx": "preserve",
     "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    // Override do "lib": ["ES2022"] de tsconfig.base.json (pensado para pacotes server-only) —
+    // este app roda client components de verdade (AppShell, CommandPalette) que usam
+    // window/document/KeyboardEvent. Sem "DOM"/"DOM.Iterable" aqui, `tsc --noEmit` falha nesses
+    // globais mesmo com o código correto (achado desta faixa, Passo 3c da Fase 1).
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

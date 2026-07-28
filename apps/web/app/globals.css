@@ -1,0 +1,57 @@
+/* Tokens do storefront Titan Stay — fonte de verdade: /apps/web/DESIGN.md. Paleta própria (clara,
+   quente), distinta do cockpit (@titan/ui/src/styles/theme.css, escuro/denso) — só o verde-acento
+   é deliberadamente idêntico entre os dois registros (ver DESIGN.md §2, "One-Accent-Two-Registers
+   Rule"). Não importar @titan/ui/src/styles/theme.css aqui — registro errado para esta superfície. */
+@import "tailwindcss";
+
+@theme {
+  /* ── Storefront (claro, quente) ── */
+  --color-bg: oklch(0.97 0.012 85);
+  --color-surface: oklch(0.995 0.006 85);
+  --color-surface-2: oklch(0.94 0.014 85);
+  --color-border: oklch(0 0 0 / 8%);
+  --color-ink: oklch(0.24 0.03 250);
+  --color-ink-muted: oklch(0.46 0.02 250);
+
+  /* Verde Titan — idêntico ao token --color-accent do cockpit (@titan/ui/src/styles/theme.css),
+     de propósito: é o único fio de identidade visual compartilhado entre as duas superfícies. */
+  --color-accent: oklch(0.78 0.17 155);
+  --color-accent-fg: oklch(0.18 0.03 155);
+
+  /* Terracota — calor humano exclusivo do storefront, nunca usado como CTA nem como status
+     (DESIGN.md §2, "Warm"). */
+  --color-warm: oklch(0.72 0.14 45);
+
+  --color-positive: oklch(0.78 0.17 155);
+  --color-negative: oklch(0.55 0.19 25);
+  --color-warning: oklch(0.62 0.13 80);
+  --color-info: oklch(0.5 0.1 250);
+
+  --radius-card: 1.25rem;
+  --radius-control: 0.75rem;
+  --radius-pill: 9999px;
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", monospace;
+
+  --shadow-card-rest: 0 1px 3px oklch(0 0 0 / 6%), 0 1px 2px oklch(0 0 0 / 4%);
+  --shadow-card-hover: 0 8px 24px oklch(0 0 0 / 10%);
+  --shadow-modal: 0 16px 48px oklch(0 0 0 / 18%);
+
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-standard: 200ms;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* The Tabular-Nums-For-Money Rule (DESIGN.md §3): todo preço em mono + figuras tabulares. */
+.tabular-figures {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

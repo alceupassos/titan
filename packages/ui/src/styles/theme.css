@@ -16,6 +16,16 @@
   --color-warning: oklch(0.8 0.15 85);
   --color-info: oklch(0.7 0.14 250);
 
+  /* Codificação categórica de canal (TapeChart, ADR-0018) — 5 tons discretos e DESSATURADOS
+     (chroma baixo, ~0.06-0.07) para não competir com o verde-acento (§"The One Voice Rule",
+     DESIGN.md §2). É legenda de dado categórico, não decoração — exceção legítima à regra de
+     "um único acento" documentada em DESIGN.md, nunca usada fora do contexto do tape chart. */
+  --color-channel-direct: oklch(0.7 0.07 235);
+  --color-channel-airbnb: oklch(0.7 0.07 15);
+  --color-channel-booking: oklch(0.68 0.06 265);
+  --color-channel-vrbo: oklch(0.7 0.06 190);
+  --color-channel-expedia: oklch(0.68 0.07 320);
+
   --radius-card: 1.25rem;
   --radius-control: 0.75rem;
   --radius-pill: 9999px;

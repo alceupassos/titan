@@ -84,10 +84,11 @@ antes do portão da Fase 7.
 
 **Pergunta:** quais dois gateways começam a operação?
 
-**Resposta:** _pendente_
-
-**Default assumido enquanto pendente:** um gateway PIX/BRL (Asaas ou Pagar.me) + Stripe para
-hóspede estrangeiro, conforme sugestão da seção 15 item 13 do prompt único.
+**Resposta:** confirmada — **Asaas** (PIX/BRL) + **Stripe** (hóspede estrangeiro), conforme
+default sugerido pela seção 15 item 13 do prompt único. Respondida ao abrir a Fase 2
+(docs/roadmap.md). Sem conta/credenciais reais de sandbox ainda configuradas nesta máquina — os
+adapters da Fase 2 são construídos contra o contrato documentado de cada provedor, prontos para
+plugar quando as contas existirem.
 
 ---
 

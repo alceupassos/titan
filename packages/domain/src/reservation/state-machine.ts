@@ -2,10 +2,27 @@
 // do canal. A garantia real é a constraint EXCLUDE USING gist no banco (packages/db); esta
 // função é a MESMA semântica expressa como função pura, para poder ser testada e reutilizada
 // antes de qualquer I/O (ex.: pré-validação no checkout, antes de tentar o INSERT).
+import type { Money } from "@titan/money";
 import { overlaps, type Stay } from "@titan/dates";
 import { canTransition, transition, type Transitions } from "../fsm";
 
 export type ReservationStatus = "pending" | "confirmed" | "cancelled" | "no_show";
+
+// Canais de distribuição (seção 6/9.2 do prompt único) — usados para colorir o tape chart e
+// para o roteamento de adapters na Fase 3. `direct` é reserva feita direto pelo storefront.
+export type Channel = "direct" | "airbnb" | "booking" | "vrbo" | "expedia";
+
+/** Entidade de reserva completa — Fase 1 promove a fatia mínima `ReservationForOverlapCheck`
+ * (que continua existindo para o pré-check de I1) para o agregado real usado pelo cockpit. */
+export interface Reservation {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly unitId: string;
+  readonly stay: Stay;
+  readonly status: ReservationStatus;
+  readonly channel: Channel;
+  readonly priceAmount: Money;
+}
 
 const RESERVATION_TRANSITIONS: Transitions<ReservationStatus> = {
   pending: ["confirmed", "cancelled"],

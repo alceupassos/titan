@@ -13,9 +13,18 @@
     "@titan/ui": "workspace:*",
     "@titan/auth": "workspace:*",
     "@titan/domain": "workspace:*",
+    "@titan/money": "workspace:*",
+    "@titan/dates": "workspace:*",
+    "@titan/db": "workspace:*",
+    "@titan/contracts": "workspace:*",
+    "@dnd-kit/core": "^6.3.1",
+    "better-auth": "1.6.25",
+    "cmdk": "^1.1.1",
+    "drizzle-orm": "0.45.2",
     "next": "16.2.1",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/react": "^19.0.2",

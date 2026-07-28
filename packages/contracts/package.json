@@ -4,5 +4,15 @@
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
-  "description": "Schemas Zod como fonte única -> tipos, Server Actions, OpenAPI, tool schema de agentes. Populado incrementalmente conforme cada domínio ganha schema."
+  "types": "./src/index.ts",
+  "description": "Schemas Zod como fonte única -> tipos, Server Actions, OpenAPI, tool schema de agentes. Populado incrementalmente conforme cada domínio ganha schema.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
 }
