@@ -87,6 +87,11 @@ export type ChecklistItemResponse = {
   readonly itemId: string;
   readonly answered: boolean;
   readonly passed?: boolean;
+  /** Planoexplica.md, Grupo D — o CONTEÚDO da resposta para itens sem noção binária de
+   * aprovar/reprovar (`numeric`: quantas toalhas está levando; `text`: qual item sumiu). Nunca
+   * usado por `computeChecklistScore` (só `passed` participa do cômputo) — é metadado que quem
+   * consome a resposta (ex.: a tela de revisão) lê para exibir/agir, não para pontuar. */
+  readonly value?: string | number;
 };
 
 export class BlockingItemUnansweredError extends Error {

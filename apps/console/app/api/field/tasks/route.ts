@@ -65,6 +65,10 @@ export async function GET(request: Request): Promise<Response> {
           itemId: item.id,
           label: item.label,
           requiresPhoto: item.type === "photo",
+          // Planoexplica.md, Grupo D — o app de campo precisa do tipo real do item para saber
+          // renderizar confirm/numeric/text (antes só sabia "tem foto ou não", nunca os outros 7
+          // tipos que packages/domain/src/housekeeping/checklist.ts já suporta).
+          type: item.type,
         })),
       );
       return { taskId: row.taskId, unitId: row.unitId, unitName: row.unitName, checklistItems };

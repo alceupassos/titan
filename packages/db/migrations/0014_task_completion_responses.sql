@@ -1,0 +1,1 @@
+ALTER TABLE "task_completion_records" ADD COLUMN "responses" jsonb;

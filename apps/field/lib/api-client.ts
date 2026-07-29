@@ -7,7 +7,7 @@
 // Sem emulador/dispositivo nesta sessão (docs/fase-atual.md) — este cliente nunca foi exercitado
 // contra um servidor real; é verificado só por typecheck. Os endpoints que ele chama são
 // implementados no Passo 5 desta mesma fase.
-import type { EvidenceEnvelope, FieldTask, ServiceType } from "./types";
+import type { ChecklistItemResponse, EvidenceEnvelope, FieldTask, ServiceType } from "./types";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
@@ -41,6 +41,7 @@ export function postTaskCompletion(params: {
   memberId: string;
   taskId: string;
   evidenceHashes: readonly string[];
+  responses: readonly ChecklistItemResponse[];
 }): Promise<{ ok: true }> {
   return request("/api/field/tasks/complete", { method: "POST", body: JSON.stringify(params) });
 }

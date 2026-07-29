@@ -46,11 +46,15 @@ export const ReviewDecisionSchema = z
 export type ReviewDecision = z.infer<typeof ReviewDecisionSchema>;
 
 // Resposta a um item do checklist durante a execução — espelha ChecklistItemResponse de
-// packages/domain/src/housekeeping/checklist.ts.
+// packages/domain/src/housekeeping/checklist.ts. `value` (Planoexplica.md, Grupo D): conteúdo de
+// itens sem noção binária de aprovar/reprovar (`numeric`: quantas toalhas está levando; `text`:
+// qual item sumiu) — nunca usado por `computeChecklistScore`, só metadado para quem consome a
+// resposta (ex.: bridge de estoque, tela de revisão).
 export const ChecklistItemResponseSchema = z.object({
   itemId: z.string().min(1),
   answered: z.boolean(),
   passed: z.boolean().optional(),
+  value: z.union([z.string(), z.number()]).optional(),
 });
 
 export const SubmitChecklistSchema = z.object({

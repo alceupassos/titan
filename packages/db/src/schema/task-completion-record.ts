@@ -15,5 +15,9 @@ export const taskCompletionRecords = pgTable("task_completion_records", {
     .references(() => workforceMembers.id),
   taskId: text("task_id").notNull(),
   evidenceHashes: jsonb("evidence_hashes").notNull(), // string[]
+  // Planoexplica.md, Grupo D — respostas de itens sem foto (confirm/numeric/text), espelho de
+  // `ChecklistItemResponse[]` (packages/domain/src/housekeeping/checklist.ts). Nullable: registros
+  // já existentes (antes desta coluna) nunca ganham um valor inventado.
+  responses: jsonb("responses"),
   completedAt: timestamp("completed_at", { withTimezone: true }).defaultNow().notNull(),
 });

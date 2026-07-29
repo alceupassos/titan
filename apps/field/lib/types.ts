@@ -11,10 +11,33 @@ export interface FieldTask {
   readonly checklistItems: readonly ChecklistItemSummary[];
 }
 
+// Os 8 tipos de item — packages/domain/src/housekeeping/checklist.ts::ChecklistItemType. Só
+// "photo"/"confirm"/"numeric"/"text" têm UI própria em ChecklistScreen.tsx hoje (Planoexplica.md,
+// Grupo D); "select"/"scan"/"timer"/"signature" seguem sem renderização (lacuna pré-existente,
+// não introduzida por este grupo, documentada aqui para não escondê-la).
+export type ChecklistItemType =
+  | "photo"
+  | "confirm"
+  | "numeric"
+  | "select"
+  | "text"
+  | "scan"
+  | "timer"
+  | "signature";
+
 export interface ChecklistItemSummary {
   readonly itemId: string;
   readonly label: string;
   readonly requiresPhoto: boolean;
+  readonly type: ChecklistItemType;
+}
+
+// Espelha ChecklistItemResponse de packages/domain/src/housekeeping/checklist.ts.
+export interface ChecklistItemResponse {
+  readonly itemId: string;
+  readonly answered: boolean;
+  readonly passed?: boolean;
+  readonly value?: string | number;
 }
 
 // Espelha EvidenceEnvelopeSchema de packages/contracts/src/housekeeping.ts.

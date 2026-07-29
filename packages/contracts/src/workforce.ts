@@ -5,6 +5,7 @@
 // de packages/contracts/src/supply.ts: fonte única de validação Zod, espelhando o vocabulário de
 // packages/domain/src/workforce/ sem depender desse pacote.
 import { z } from "zod";
+import { ChecklistItemResponseSchema } from "./housekeeping";
 
 const uuidSchema = z.string().uuid();
 const civilDateSchema = z
@@ -60,5 +61,6 @@ export const RecordTaskCompletionSchema = z.object({
   memberId: uuidSchema,
   taskId: z.string().min(1),
   evidenceHashes: z.array(z.string()).default([]),
+  responses: z.array(ChecklistItemResponseSchema).default([]),
 });
 export type RecordTaskCompletion = z.infer<typeof RecordTaskCompletionSchema>;

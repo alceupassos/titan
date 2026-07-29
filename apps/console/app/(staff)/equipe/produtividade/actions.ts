@@ -62,6 +62,7 @@ export async function recordTaskCompletionAction(input: unknown): Promise<Action
           memberId: request.memberId,
           taskId: request.taskId,
           evidenceHashes: request.evidenceHashes,
+          responses: request.responses.length > 0 ? request.responses : null,
         })
         .returning({ id: taskCompletionRecords.id }),
     );

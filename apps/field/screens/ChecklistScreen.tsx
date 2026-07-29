@@ -3,18 +3,26 @@
 // EvidenceEnvelopeSchema em todos os tiers (packages/contracts/src/housekeeping.ts) — só a
 // origem da captura muda. `expo-image-picker` para escolher/tirar a foto, `expo-crypto` (SHA-256
 // nativo) para o contentHash sobre os bytes — chamadas reais das APIs, não simuladas.
+//
+// Planoexplica.md, Grupo D — além de "photo", esta tela agora também renderiza "confirm"
+// (sim/não — ex.: "roupa de cama pode ser reaproveitada?"), "numeric" (ex.: "quantas toalhas está
+// levando?") e "text" (ex.: "sumiu algum item? qual?"), coletando tudo em `responses` e enviando
+// junto com os hashes de evidência. "select"/"scan"/"timer"/"signature" seguem sem UI própria
+// (lacuna pré-existente, documentada em apps/field/lib/types.ts, não introduzida aqui).
 import { useState } from "react";
-import { Alert, Button, StyleSheet, Text, View } from "react-native";
+import { Alert, Button, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { postTaskCompletion } from "../lib/api-client";
-import type { EvidenceEnvelope, FieldTask } from "../lib/types";
+import type { ChecklistItemResponse, EvidenceEnvelope, FieldTask } from "../lib/types";
 
 const APP_VERSION = "0.0.0"; // espelha package.json — Fase 9, sem build EAS real nesta sessão.
 
 async function computeContentHash(base64: string): Promise<string> {
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, base64);
 }
+
+type AnswerValue = { readonly confirmed?: boolean; readonly text?: string };
 
 export function ChecklistScreen({
   task,
@@ -28,6 +36,7 @@ export function ChecklistScreen({
   onDone: () => void;
 }) {
   const [capturedHashes, setCapturedHashes] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [submitting, setSubmitting] = useState(false);
 
   async function captureForItem(itemId: string) {
@@ -63,6 +72,39 @@ export function ChecklistScreen({
     setCapturedHashes((prev) => ({ ...prev, [itemId]: contentHash }));
   }
 
+  function setConfirmAnswer(itemId: string, confirmed: boolean) {
+    setAnswers((prev) => ({ ...prev, [itemId]: { confirmed } }));
+  }
+
+  function setTextAnswer(itemId: string, text: string) {
+    setAnswers((prev) => ({ ...prev, [itemId]: { text } }));
+  }
+
+  function buildResponses(): ChecklistItemResponse[] {
+    return task.checklistItems
+      .filter((item) => item.type === "confirm" || item.type === "numeric" || item.type === "text")
+      .map((item): ChecklistItemResponse => {
+        const answer = answers[item.itemId];
+        if (item.type === "confirm") {
+          return { itemId: item.itemId, answered: answer?.confirmed !== undefined, passed: answer?.confirmed };
+        }
+        if (item.type === "numeric") {
+          const parsed = answer?.text ? Number.parseFloat(answer.text) : undefined;
+          return {
+            itemId: item.itemId,
+            answered: parsed !== undefined && !Number.isNaN(parsed),
+            ...(parsed !== undefined && !Number.isNaN(parsed) ? { value: parsed } : {}),
+          };
+        }
+        // "text"
+        return {
+          itemId: item.itemId,
+          answered: Boolean(answer?.text && answer.text.length > 0),
+          ...(answer?.text ? { value: answer.text } : {}),
+        };
+      });
+  }
+
   async function handleSubmit() {
     setSubmitting(true);
     try {
@@ -70,6 +112,7 @@ export function ChecklistScreen({
         memberId,
         taskId: task.taskId,
         evidenceHashes: Object.values(capturedHashes),
+        responses: buildResponses(),
       });
       onDone();
     } catch {
@@ -95,6 +138,33 @@ export function ChecklistScreen({
               onPress={() => captureForItem(item.itemId)}
             />
           ) : null}
+          {item.type === "confirm" ? (
+            <View style={styles.confirmRow}>
+              <Text style={styles.confirmLabel}>Não</Text>
+              <Switch
+                value={answers[item.itemId]?.confirmed ?? false}
+                onValueChange={(value) => setConfirmAnswer(item.itemId, value)}
+              />
+              <Text style={styles.confirmLabel}>Sim</Text>
+            </View>
+          ) : null}
+          {item.type === "numeric" ? (
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              placeholder="Quantidade"
+              value={answers[item.itemId]?.text ?? ""}
+              onChangeText={(text) => setTextAnswer(item.itemId, text)}
+            />
+          ) : null}
+          {item.type === "text" ? (
+            <TextInput
+              style={styles.input}
+              placeholder="Descreva (deixe em branco se não houver)"
+              value={answers[item.itemId]?.text ?? ""}
+              onChangeText={(text) => setTextAnswer(item.itemId, text)}
+            />
+          ) : null}
         </View>
       ))}
       <View style={styles.footer}>
@@ -109,5 +179,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "600", marginBottom: 16 },
   item: { marginBottom: 16, gap: 8 },
   itemLabel: { fontSize: 15 },
+  confirmRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  confirmLabel: { fontSize: 13, color: "#555" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 15,
+  },
   footer: { marginTop: 24 },
 });
