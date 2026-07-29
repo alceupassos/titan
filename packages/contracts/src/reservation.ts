@@ -64,5 +64,8 @@ export const CreateReservationSchema = z.object({
   checkoutISO: civilDateSchema,
   ratePlanId: uuidSchema,
   channel: channelSchema,
+  // Planoexplica.md, Grupo B — quantos hóspedes ficam nesta estadia. Opcional: reserva vinda de
+  // canal externo pode não informar; nunca inventamos um número quando ausente.
+  guestCount: z.number().int().positive().optional(),
 });
 export type CreateReservation = z.infer<typeof CreateReservationSchema>;

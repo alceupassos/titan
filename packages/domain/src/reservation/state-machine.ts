@@ -22,6 +22,15 @@ export interface Reservation {
   readonly status: ReservationStatus;
   readonly channel: Channel;
   readonly priceAmount: Money;
+  /** Planoexplica.md, Grupo B/C — metadado operacional (nunca usado em I1/preço). `guestCount`
+   * alimenta a régua de enxoval por hóspede; `earlyCheckin*` alimenta a regra de prazo de 9h
+   * quando pago. Ausente (`undefined`) é o estado normal para a maioria das reservas. */
+  readonly guestCount?: number;
+  readonly checkinTime?: string;
+  readonly checkoutTime?: string;
+  readonly earlyCheckinRequested?: boolean;
+  readonly earlyCheckinPaid?: boolean;
+  readonly earlyCheckinAuthorizedBy?: string;
 }
 
 const RESERVATION_TRANSITIONS: Transitions<ReservationStatus> = {

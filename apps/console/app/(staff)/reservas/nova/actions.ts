@@ -249,6 +249,7 @@ export async function createReservationAction(input: unknown): Promise<ActionRes
             channel: request.channel,
             priceCents: priceAmount.amountCents,
             currency: priceAmount.currency,
+            guestCount: request.guestCount ?? null,
           })
           .returning({ id: reservations.id });
 

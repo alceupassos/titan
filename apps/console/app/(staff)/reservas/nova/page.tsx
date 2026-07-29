@@ -29,6 +29,9 @@ interface FormState {
   checkinISO: string;
   checkoutISO: string;
   channel: Channel;
+  // Planoexplica.md, Grupo B — string no estado do formulário (input controlado), convertido
+  // para número (ou omitido) só na hora de montar o payload da Server Action.
+  guestCount: string;
 }
 
 const CHANNEL_LABEL: Record<Channel, string> = {
@@ -48,6 +51,7 @@ function initialFormState(): FormState {
     checkinISO: "2026-08-10",
     checkoutISO: "2026-08-13",
     channel: "direct",
+    guestCount: "",
   };
 }
 
@@ -94,6 +98,7 @@ export default function NovaReservaPage() {
   function handleConfirmar(): void {
     if (!quoteResult?.ok) return;
     const quote = quoteResult.data;
+    const parsedGuestCount = Number.parseInt(form.guestCount, 10);
     startConfirming(async () => {
       const result = await createReservationAction({
         quoteId: quote.id,
@@ -102,6 +107,7 @@ export default function NovaReservaPage() {
         checkoutISO: form.checkoutISO,
         ratePlanId: form.ratePlanId,
         channel: form.channel,
+        guestCount: Number.isFinite(parsedGuestCount) && parsedGuestCount > 0 ? parsedGuestCount : undefined,
       });
       setReservationResult(result);
     });
@@ -165,6 +171,18 @@ export default function NovaReservaPage() {
               className="w-full rounded-control border border-border bg-surface-2 px-3 py-2 text-sm tabular-figures text-fg"
               value={form.checkoutISO}
               onChange={(e) => updateField("checkoutISO", e.target.value)}
+            />
+          </label>
+
+          <label className="block text-sm">
+            <span className="mb-1 block text-label text-fg-muted">Quantos hóspedes (opcional)</span>
+            <input
+              type="number"
+              min={1}
+              className="w-full rounded-control border border-border bg-surface-2 px-3 py-2 text-sm tabular-figures text-fg"
+              value={form.guestCount}
+              onChange={(e) => updateField("guestCount", e.target.value)}
+              placeholder="ex.: 4"
             />
           </label>
 
