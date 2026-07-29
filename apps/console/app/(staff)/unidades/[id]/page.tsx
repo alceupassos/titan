@@ -11,7 +11,10 @@ import { ComparisonBarChart, KpiCard, Sparkline, StatusPill } from "@titan/ui";
 import type { StatusTone } from "@titan/ui";
 import type { Channel, ReservationStatus, UnitStatus } from "@titan/domain";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { NoActiveTenantError, requireStaffSession, UnauthenticatedError } from "@/lib/auth/session";
 import { runPricingPipeline } from "../../pricing/pipeline";
+import { getRealUnitById, type RealUnit } from "../queries";
 import {
   STUDIOS,
   SAMPLE_MINIMUM_MARGIN_BASIS_POINTS,
@@ -77,11 +80,60 @@ function rollingOccupancyRate(history: readonly { occupied: boolean }[], window:
   });
 }
 
+/** Página de detalhe de uma unidade REAL cadastrada (Planoexplica.md, "cadastrar unidade") — sem
+ * o pipeline de pricing/comp-set dos studios de amostra: uma unidade real só tem histórico de
+ * ocupação/preço depois que reservas de verdade existirem para ela (Grupo E, /reservas). Nunca
+ * finge um comp set fabricado para uma unidade que não tem dado nenhum ainda. */
+function RealUnitDetail({ unit }: { unit: RealUnit }) {
+  return (
+    <div className="p-6">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <h1 className="text-[clamp(1.5rem,2vw,2rem)] font-semibold leading-[1.1] tracking-[-0.01em] text-fg">
+          {unit.name}
+        </h1>
+        <StatusPill tone={STATUS_TONE[unit.status]}>{STATUS_LABEL[unit.status]}</StatusPill>
+        {unit.areaSqm ? (
+          <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-xs text-fg-muted">{unit.areaSqm}m²</span>
+        ) : null}
+        {unit.maxCapacity ? (
+          <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-xs text-fg-muted">
+            até {unit.maxCapacity} pessoas
+          </span>
+        ) : null}
+        {unit.category ? (
+          <span className="rounded-pill bg-surface-2 px-2.5 py-0.5 text-xs text-fg-muted">{unit.category}</span>
+        ) : null}
+      </div>
+      <EmptyState message="Unidade cadastrada de verdade — ocupação, precificação e pesquisa de comparação de mercado aparecem aqui quando houver reservas reais para ela (ver /reservas)." />
+    </div>
+  );
+}
+
 export default async function UnidadeDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const unit = STUDIOS.find((candidate) => candidate.id === id);
+
   if (!unit) {
-    notFound();
+    // Não é um dos 4 studios de amostra — tenta como unidade real cadastrada de verdade.
+    let session;
+    try {
+      session = await requireStaffSession();
+    } catch (err) {
+      const message =
+        err instanceof UnauthenticatedError || err instanceof NoActiveTenantError
+          ? err.message
+          : "Falha ao verificar sessão.";
+      return (
+        <div className="p-6">
+          <EmptyState message={message} />
+        </div>
+      );
+    }
+    const realUnit = await getRealUnitById({ tenantId: session.tenantId, actorId: session.userId, unitId: id });
+    if (!realUnit) {
+      notFound();
+    }
+    return <RealUnitDetail unit={realUnit} />;
   }
 
   const seedOffset = Number(unit.code);

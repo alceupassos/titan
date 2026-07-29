@@ -45,6 +45,9 @@ export const SAMPLE_UNITS: readonly UnitRow[] = [
     tenantId: TENANT_ID,
     name: "Studio Vista Mar 101",
     status: "dirty",
+    areaSqm: null,
+    maxCapacity: null,
+    category: null,
     createdAt: new Date(NOW_ANCHOR_EPOCH_MS - 200 * 24 * HOUR_MS),
   },
   {
@@ -52,6 +55,9 @@ export const SAMPLE_UNITS: readonly UnitRow[] = [
     tenantId: TENANT_ID,
     name: "Apartamento Jardins 202",
     status: "cleaning",
+    areaSqm: null,
+    maxCapacity: null,
+    category: null,
     createdAt: new Date(NOW_ANCHOR_EPOCH_MS - 180 * 24 * HOUR_MS),
   },
   {
@@ -59,6 +65,9 @@ export const SAMPLE_UNITS: readonly UnitRow[] = [
     tenantId: TENANT_ID,
     name: "Loft Centro 401",
     status: "clean",
+    areaSqm: null,
+    maxCapacity: null,
+    category: null,
     createdAt: new Date(NOW_ANCHOR_EPOCH_MS - 160 * 24 * HOUR_MS),
   },
   {
@@ -66,6 +75,9 @@ export const SAMPLE_UNITS: readonly UnitRow[] = [
     tenantId: TENANT_ID,
     name: "Casa de Praia Enseada",
     status: "inspected",
+    areaSqm: null,
+    maxCapacity: null,
+    category: null,
     createdAt: new Date(NOW_ANCHOR_EPOCH_MS - 140 * 24 * HOUR_MS),
   },
   {
@@ -73,6 +85,9 @@ export const SAMPLE_UNITS: readonly UnitRow[] = [
     tenantId: TENANT_ID,
     name: "Vila Enseada 12",
     status: "rework",
+    areaSqm: null,
+    maxCapacity: null,
+    category: null,
     createdAt: new Date(NOW_ANCHOR_EPOCH_MS - 120 * 24 * HOUR_MS),
   },
 ];

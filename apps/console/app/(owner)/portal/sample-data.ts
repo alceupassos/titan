@@ -38,6 +38,9 @@ export const SAMPLE_OWNER_UNITS: readonly UnitRow[] = [
     tenantId: TENANT_ID,
     name: "Apartamento Jardins 202",
     status: "ready",
+    areaSqm: null,
+    maxCapacity: null,
+    category: null,
     createdAt: new Date(NOW_ANCHOR_EPOCH_MS - 200 * 24 * 60 * 60 * 1000),
   },
   {
@@ -45,6 +48,9 @@ export const SAMPLE_OWNER_UNITS: readonly UnitRow[] = [
     tenantId: TENANT_ID,
     name: "Loft Centro 401",
     status: "ready",
+    areaSqm: null,
+    maxCapacity: null,
+    category: null,
     createdAt: new Date(NOW_ANCHOR_EPOCH_MS - 200 * 24 * 60 * 60 * 1000),
   },
 ];

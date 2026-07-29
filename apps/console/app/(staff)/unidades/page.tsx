@@ -1,16 +1,18 @@
-// Lista de administração de unidades (studios) — conteúdo demo pedido pelo usuário: 4 studios de
-// 40m², capacidade máxima 6 pessoas (506, 609, 312, 409). Dado 100% de amostra (`./sample-data.ts`)
-// — mesmo espírito de apps/console/app/(staff)/pricing/page.tsx e .../estoque/page.tsx: sem
-// Postgres vivo nesta máquina e sem colunas reais de área/capacidade em `units` (Gap conhecido 2 +
-// gap de `inventory` documentado desde a Fase 8). Trocar por uma query real de `packages/db` é a
-// única mudança necessária quando essas colunas existirem.
+// Lista de unidades — duas seções: (1) unidades REAIS cadastradas de verdade (Planoexplica.md,
+// "cadastrar unidade" — ./queries.ts, ./nova), e (2) os 4 studios de DEMONSTRAÇÃO do pipeline de
+// pricing/comp-set (506/609/312/409, ./sample-data.ts) — mantidos porque são o que mostra como a
+// pesquisa de comparação de preços vai funcionar; nunca misturados na mesma lista, para não
+// confundir dado real com dado fabricado.
 import Link from "next/link";
 import { format, money } from "@titan/money";
-import { StatusPill, Sparkline } from "@titan/ui";
+import { Button, StatusPill, Sparkline } from "@titan/ui";
 import type { StatusTone } from "@titan/ui";
 import type { UnitStatus } from "@titan/domain";
 import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { NoActiveTenantError, requireStaffSession, UnauthenticatedError } from "@/lib/auth/session";
 import { STUDIOS, buildOccupancyHistory } from "./sample-data";
+import { listRealUnitsForTenant, type RealUnit } from "./queries";
 
 const STATUS_LABEL: Record<UnitStatus, string> = {
   ready: "Pronta",
@@ -43,47 +45,110 @@ function rollingOccupancyRate(history: readonly { occupied: boolean }[], window:
   });
 }
 
-export default function UnidadesPage() {
+function RealUnitCard({ unit }: { unit: RealUnit }) {
+  return (
+    <Link
+      href={`/unidades/${unit.id}`}
+      className="flex flex-col gap-3 rounded-card border border-border bg-surface p-5 transition-shadow duration-200 ease-[var(--ease-standard)] hover:shadow-[0_4px_16px_oklch(0_0_0_/_24%)]"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-[1.0625rem] font-semibold text-fg">{unit.name}</div>
+          <div className="mt-1 text-sm text-fg-muted">
+            {unit.category ?? "Categoria não informada"}
+            {unit.areaSqm ? ` · ${unit.areaSqm}m²` : ""}
+            {unit.maxCapacity ? ` · até ${unit.maxCapacity} pessoas` : ""}
+          </div>
+        </div>
+        <StatusPill tone={STATUS_TONE[unit.status]}>{STATUS_LABEL[unit.status]}</StatusPill>
+      </div>
+    </Link>
+  );
+}
+
+export default async function UnidadesPage() {
+  let realUnits: RealUnit[] = [];
+  let loadError: string | null = null;
+
+  try {
+    const session = await requireStaffSession();
+    if (session.ability.can("read", "unit")) {
+      realUnits = await listRealUnitsForTenant({ tenantId: session.tenantId, actorId: session.userId });
+    }
+  } catch (err) {
+    loadError =
+      err instanceof UnauthenticatedError || err instanceof NoActiveTenantError
+        ? err.message
+        : "Não foi possível consultar as unidades cadastradas agora.";
+  }
+
   return (
     <div className="p-6">
-      <PageHeader
-        title="Unidades"
-        description="Administração dos studios — ocupação, precificação e pesquisa de comparação de mercado. Dados de amostra (sem Postgres vivo nesta máquina)."
-      />
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {STUDIOS.map((unit) => {
-          const occupancyTrend = rollingOccupancyRate(buildOccupancyHistory(Number(unit.code)), 7);
-          return (
-            <Link
-              key={unit.id}
-              href={`/unidades/${unit.id}`}
-              className="group flex flex-col gap-4 rounded-card border border-border bg-surface p-5 transition-shadow duration-200 ease-[var(--ease-standard)] hover:shadow-[0_4px_16px_oklch(0_0_0_/_24%)]"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-[1.0625rem] font-semibold text-fg">{unit.name}</div>
-                  <div className="mt-1 text-sm text-fg-muted">
-                    {unit.areaSqm}m² · até {unit.maxCapacity} pessoas
-                  </div>
-                </div>
-                <StatusPill tone={STATUS_TONE[unit.status]}>{STATUS_LABEL[unit.status]}</StatusPill>
-              </div>
-
-              <div className="h-10">
-                <Sparkline points={occupancyTrend} variant="positive" />
-              </div>
-
-              <div className="flex items-baseline justify-between border-t border-border pt-3">
-                <span className="text-xs text-fg-muted">Diária atual</span>
-                <span className="tabular-figures text-lg font-semibold">
-                  {format(money(unit.currentNightlyPriceCents, "BRL"))}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <PageHeader
+          title="Unidades"
+          description="Cadastro real de unidades + demonstração de ocupação/precificação."
+        />
+        <Link href="/unidades/nova">
+          <Button variant="primary">Nova unidade</Button>
+        </Link>
       </div>
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-label text-fg-muted">Unidades cadastradas</h2>
+        {loadError ? (
+          <EmptyState message={loadError} />
+        ) : realUnits.length === 0 ? (
+          <EmptyState message="Nenhuma unidade cadastrada ainda — use “Nova unidade” para adicionar a primeira." />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {realUnits.map((unit) => (
+              <RealUnitCard key={unit.id} unit={unit} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-1 text-label text-fg-muted">Studios de demonstração</h2>
+        <p className="mb-3 text-xs text-fg-muted">
+          Dado fabricado — mostra como ocupação, precificação e comparação de mercado vão
+          funcionar quando uma unidade real tiver histórico de reservas.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {STUDIOS.map((unit) => {
+            const occupancyTrend = rollingOccupancyRate(buildOccupancyHistory(Number(unit.code)), 7);
+            return (
+              <Link
+                key={unit.id}
+                href={`/unidades/${unit.id}`}
+                className="group flex flex-col gap-4 rounded-card border border-border bg-surface p-5 transition-shadow duration-200 ease-[var(--ease-standard)] hover:shadow-[0_4px_16px_oklch(0_0_0_/_24%)]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-[1.0625rem] font-semibold text-fg">{unit.name}</div>
+                    <div className="mt-1 text-sm text-fg-muted">
+                      {unit.areaSqm}m² · até {unit.maxCapacity} pessoas
+                    </div>
+                  </div>
+                  <StatusPill tone={STATUS_TONE[unit.status]}>{STATUS_LABEL[unit.status]}</StatusPill>
+                </div>
+
+                <div className="h-10">
+                  <Sparkline points={occupancyTrend} variant="positive" />
+                </div>
+
+                <div className="flex items-baseline justify-between border-t border-border pt-3">
+                  <span className="text-xs text-fg-muted">Diária atual</span>
+                  <span className="tabular-figures text-lg font-semibold">
+                    {format(money(unit.currentNightlyPriceCents, "BRL"))}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

@@ -132,6 +132,10 @@ export type Subject =
   // o Concierge propõe já é decidida pela fila de `/aprovacoes` (approval_request tipo
   // "agent_action"), nunca por esta ability.
   | "agent_conversation"
+  // Planoexplica.md, "cadastrar unidade" — cadastro da unidade em si (nome, área, capacidade,
+  // categoria, status inicial). Subject dedicado em vez de reusar "cleaning_task"/"work_order":
+  // a decisão aqui é sobre a EXISTÊNCIA/ficha da unidade, não sobre uma tarefa ou reserva dela.
+  | "unit"
   | "all";
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
@@ -279,6 +283,9 @@ export function defineAbilityFor(role: Role): AppAbility {
       // iniciar a conversa (grava agent_conversations/agent_traces); a consequência financeira/
       // fiscal eventual continua decidida só pela fila de /aprovacoes (agent_action), nunca aqui.
       can(["read", "create"], "agent_conversation");
+      // Planoexplica.md, "cadastrar unidade" — cadastrar/atualizar a ficha da unidade é trabalho
+      // operacional do dia a dia, mesmo espírito de "workforce_member"/"vendor_profile" acima.
+      can(["read", "create", "update"], "unit");
       break;
     case "titan.support":
       can(["read", "update"], "reservation"); // até alçada — limite real vem de docs/decisoes-de-negocio.md #5
