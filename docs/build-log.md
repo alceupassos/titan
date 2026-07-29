@@ -333,3 +333,18 @@ modelo usado, faixa e resultado — é o registro de rastreabilidade e custo do 
 | 2026-07-28T22:43:10.294Z | Explore | desconhecido | concluído |
 | 2026-07-28T23:04:30.244Z |  | desconhecido | concluído |
 | 2026-07-28T23:23:16.464Z |  | desconhecido | concluído |
+| 2026-07-29T12:40:58.793Z |  | desconhecido | concluído |
+| 2026-07-29T12:44:00.728Z |  | desconhecido | concluído |
+| 2026-07-29T13:38:17.900Z |  | desconhecido | concluído |
+| 2026-07-29T13:38:31.691Z |  | desconhecido | concluído |
+| 2026-07-29T13:38:51.025Z |  | desconhecido | concluído |
+| 2026-07-29T13:38:51.134Z |  | desconhecido | concluído |
+| 2026-07-29T13:39:03.676Z |  | desconhecido | concluído |
+| 2026-07-29T13:39:22.892Z |  | desconhecido | concluído |
+| 2026-07-29T13:39:23.695Z |  | desconhecido | concluído |
+| 2026-07-29T13:39:29.899Z | Explore | desconhecido | concluído |
+| 2026-07-29T13:39:44.054Z | Explore | desconhecido | concluído |
+| 2026-07-29T13:39:56.160Z |  | desconhecido | concluído |
+| 2026-07-29T13:40:28.388Z |  | desconhecido | concluído |
+| 2026-07-29T13:41:01.030Z |  | desconhecido | concluído |
+| 2026-07-29T13:41:35.948Z | Explore | desconhecido | concluído |
