@@ -1136,3 +1136,58 @@ Trabalho futuro (fora do escopo de fase): certificações contínuas de canal (B
 Airbnb, já em andamento paralelo desde a Fase 3), respostas formais de contador/jurídico às
 ressalvas documentadas em cada fase fiscal/trabalhista, provisionamento de infraestrutura real
 (VPS, Docker, contas de gateway/fiscal/LLM) quando o negócio decidir ir a produção.
+
+## Pós-roadmap — VPS real, login, e pedidos do sócio via `planoexplica.md`
+
+Com o roadmap F0-F10 fechado, a operação passou de "só código local" para um **preview real em
+produção**: VPS Contabo (169.58.71.28) com Postgres/pgbouncer/redis via Docker Compose, nginx +
+certificado Cloudflare Origin, `apps/console` publicado em `https://titan.giannasiadvogados.com.br`
+— convivendo no mesmo servidor com o site institucional (`giannasiadvogados.com.br`) e o
+`hermes-gateway.service`/OpenClaw já existentes, sem interrupção de nenhum dos dois (restrição
+explícita do usuário). Login real (Better Auth: schema próprio, route handler, `baseURL`/
+`trustedOrigins`) foi construído do zero — antes só existia a configuração, sem UI nem schema —
+com 3 contas de teste (`admin@titan.preview`, dono de apto, hóspede).
+
+O sócio não-técnico anotou ~10 pedidos de funcionalidade direto numa cópia de `explicacao.md`
+(marcados com `@@`), consolidados em **`planoexplica.md`** (raiz do repo) em 8 grupos (A-G),
+cada um com o que a investigação encontrou de real no código, como construir, e limitações a
+aceitar. Ordem de execução aprovada: migration de reservas (guestCount/horários/early check-in)
+→ Grupo E → Grupo D → Grupo G → Grupos B+C → Grupo F → Grupo A (por último, o mais caro/arriscado).
+
+**Concluído nesta leva:**
+- **Migration `0013`** — `reservations` ganha `guestCount`, `checkinTime`/`checkoutTime`,
+  `earlyCheckinRequested`/`earlyCheckinPaid`/`earlyCheckinAuthorizedBy`. Aplicada no VPS.
+- **Grupo E (consolidação de reservas)** — `/reservas` deixou de ser o placeholder cru da Fase 1:
+  listagem real via `queries.ts` (`withTenant`), filtro por data (mesmo padrão de
+  `financeiro/dre`), exportação CSV via `app/api/reservas/export/route.ts`.
+- **Grupo D (checklist da prestadora)** — `ChecklistItemResponse` ganhou `value?: string | number`
+  para os tipos `numeric`/`text` (roupa de cama reaproveitável, quantas toalhas, item sumido),
+  persistido de ponta a ponta: `apps/field/screens/ChecklistScreen.tsx` → `POST /api/field/tasks/
+  complete` → `task_completion_records.responses` (migration `0014`, coluna `jsonb` nova).
+- **Cadastro de unidade nova** (gap identificado pelo usuário, fora dos 8 grupos originais —
+  antes só existiam os 4 studios de demonstração fixos, sem tela para cadastrar um apartamento
+  real): migration `0015` (`units.area_sqm`/`max_capacity`/`category`, nulláveis); subject `"unit"`
+  novo em CASL (`titan.operations`: read/create/update); `/unidades/nova` (formulário real,
+  grava direto no banco via `createUnitAction`); `/unidades` agora lista unidades reais
+  cadastradas (`queries.ts::listRealUnitsForTenant`) ao lado dos 4 studios de amostra, os dois
+  claramente rotulados para nunca confundir dado real com fabricado; `/unidades/[id]` cai para
+  uma view simples (`RealUnitDetail`) quando o id não é um dos 4 studios de demo — nunca mais
+  404 para uma unidade real, e nunca finge um pipeline de pricing/comp-set que exige histórico de
+  reservas que essa unidade ainda não tem.
+
+**Verificação real feita nesta leva:** `pnpm turbo run typecheck` limpo nos 17 pacotes; `next
+build` real de `apps/console` sem regressão (40 rotas, incluindo `/unidades/nova` nova); deploy
+completo no VPS (`git pull` → `drizzle-kit migrate` real das migrations 0013/0014/0015 →
+`next build` real → restart de `titan-console.service`); verificado **ao vivo via Playwright**,
+autenticado como `admin@titan.preview`: cadastro de uma unidade de teste, confirmação de que ela
+aparece em "Unidades cadastradas" e que `/unidades/[id]` renderiza a view real corretamente —
+unidade de teste removida do banco ao final da verificação. `nginx`/`hermes-gateway.service`/
+`docker` confirmados `active` antes e depois de cada restart, sem nenhuma interrupção do site
+institucional que compartilha o VPS.
+
+**Pendente desta leva:** Grupo G (vínculo do prestador — precisa de alinhamento rápido sobre o
+campo ser só informativo, ver `planoexplica.md`), Grupos B+C (página "Dia"/Calendário +
+ferramenta MCP nova de WhatsApp — precisa da régua de "toalhas por hóspede"), Grupo F
+(recebíveis, depende do Grupo E, já concluído), Grupo A (integração Airbnb/Booking, deixado por
+último por design). Rotação da senha root do VPS, recomendada múltiplas vezes, ainda não
+confirmada pelo usuário.
